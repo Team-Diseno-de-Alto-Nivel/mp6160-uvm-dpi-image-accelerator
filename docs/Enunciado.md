@@ -1,18 +1,18 @@
-**Evaluación Corta 2** 
+**Evaluación Corta 4** 
 
 **Nombre:** 
 
-**Semana # 4: 4/Junio/2026** 
+**Semana # 8: 2/Julio/2026** 
 
-## **Diseño de Alto Nivel - MP6160: II Cuatrimestre 2026** 
+**Diseño de Alto Nivel - MP6160: II Cuatrimestre 2026** 
 
 **Profesor: Luis G. León-Vega, Ph.D** 
 
 ## **Instrucciones:** 
 
-Para esta evaluación, cada grupo deberá desarrollar un modelo de sistema a nivel electrónico utilizando **SystemC** y **TLM 2.0** . El objetivo es modelar, a nivel de transacciones, una arquitectura compuesta por un procesador, una memoria RAM, un almacenamiento persistente y un acelerador de procesamiento de imagen. 
+Para esta evaluación, cada grupo deberá desarrollar un módulo en Verilog que le permita hacer un testbench con UVM. Asimismo, debe interconectarlo con VPI/DPI mediante SystemC. Esto con el sistema ya realizado previamente en SystemC. 
 
-El sistema deberá implementar el siguiente flujo: 
+Recordando que el sistema implementa el siguiente flujo: 
 
 1. El **CPU** debe cargar una imagen desde un almacenamiento persistente (módulo de SC), representado por una carpeta en el computador. 
 
@@ -32,49 +32,27 @@ El sistema deberá implementar el siguiente flujo:
 
 6. Finalmente, el CPU debe leer la imagen procesada desde memoria y almacenarla nuevamente en disco. 
 
-## **Requerimientos del modelo** 
+# **Requerimientos de la implementación** 
 
 Se deben satisfacer: 
 
-- El sistema debe estar descrito en **SystemC** . 
+- Describir el módulo de memoria RAM en Verilog, con un puerto AXI4 Full. 
 
-- La comunicación entre los componentes debe modelarse usando **TLM 2.0** . 
+- Crear un testbench siguiendo el estándar UVM y SystemVerilog. 
 
-- El bus de datos debe representarse mediante transacciones TLM entre los módulos. 
+- Integrar el módulo de RAM en el modelo del sistema (hecho en la segunda evaluación) usando DPI/VPI. 
 
-- La memoria RAM debe tener una capacidad máxima de **64 MB** . 
-
-- El almacenamiento persistente puede modelarse como acceso a archivos dentro de una carpeta local. 
-
-- El acelerador debe implementar la conversión RGB a escala de grises. 
-
-- El modelo debe mostrar claramente la separación entre: 
-
-- Procesamiento funcional. 
-
-- Comunicación mediante TLM. 
-
-- Almacenamiento temporal en memoria. 
-
-- Entrada y salida persistente. 
-
-## **Componentes esperados** 
-
-- **CPU:** controla el flujo general del sistema, carga la imagen, configura el acelerador y guarda el resultado. 
-
-- **Memoria RAM:** almacena la imagen original y la imagen procesada. 
-
-- **Almacenamiento persistente:** representa el disco o sistema de archivos desde donde se lee y escribe la imagen. 
-
-- **Acelerador:** procesa la imagen RGB y genera una versión en escala de grises. 
-
-- **Bus TLM:** modela la comunicación entre CPU, memoria y acelerador mediante transacciones. 
-
-## **Entregables** 
+# **Entregables** 
 
 Considere la entrega en un repositorio de GitHub con lo siguiente: 
 
-- Código fuente en SystemC. 
+- Código fuente en Verilog y SystemVerilog: implementación + testbench. 
+
+- Código fuente en SystemC del acelerador y sus auxiliares. 
+
+- Scripts para correr la simulación en SystemVerilog 
+
+- Scripts para automatizar la construcción del modelo, junto con DPI/VPI y el RTL. 
 
 - Imagen de entrada en formato RAW RGB. 
 
@@ -94,15 +72,11 @@ Considere la entrega en un repositorio de GitHub con lo siguiente:
 
    - Diagrama de secuencias. 
 
-   - Formato de las transacciones. 
-
-   - Mapa de memoria utilizado. 
-
    - Resultados obtenidos. 
 
-## **En caso de uso de Inteligencia Artificial** 
+# **En caso de uso de Inteligencia Artificial** 
 
 _De acuerdo con el incentivo de uso de Inteligencia Artificial, si esta se utiliza para alguna evaluación, debe indicarse una declaración sobre su uso, incluyendo los prompts y la clase de utilización que se da, por ejemplo: revisión de código, consulta de conceptos, depuración, generación de diagramas o mejora de redacción. Una falla en esta declaración implicará la aplicación de la normativa de plagio._ 
 
-**Fecha de Entrega** : 18 de Junio del 2026. 
+**Fecha de Entrega** : 30 de Julio del 2026. 
 
