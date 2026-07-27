@@ -109,6 +109,11 @@ jobs:
           if git diff --cached --quiet; then
             echo "No result changes to commit"
           else
-            git commit -m "ci: update simulation results"
+            # [skip ci] evita que este push vuelva a disparar el workflow.
+            # Sin eso queda un run fantasma por cada commit de resultados: lo
+            # dispara github-actions[bot], GitHub lo deja en "action_required"
+            # esperando aprobación, y ensucia los checks del PR sin aportar
+            # nada — el job `changes` lo saltearía igual por el guard de actor.
+            git commit -m "ci: update simulation results [skip ci]"
             git push origin HEAD:${{ github.head_ref }}
           fi
