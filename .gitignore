@@ -45,3 +45,7 @@ webtalk*
 !.vscode/c_cpp_properties.json
 *.swp
 *~
+
+# Python
+__pycache__/
+*.pyc

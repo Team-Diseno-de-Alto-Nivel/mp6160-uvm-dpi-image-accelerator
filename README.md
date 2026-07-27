@@ -122,20 +122,18 @@ Without Verilator the project still builds — `sim` just rejects `--rtl-ram` wi
 
 ### CI / CD
 
-Every pull request triggers [build.yml](.github/workflows/build.yml), which runs five jobs:
+Every pull request triggers [build.yml](.github/workflows/build.yml), which runs four jobs:
 
 | Job | What it does | Blocking |
 |---|---|---|
 | `changes` | Decides whether anything relevant changed, so docs-only PRs skip the heavy jobs | — |
 | `deliverables` | Checks that every artifact the assignment requires actually exists in the repo | ✅ |
 | `lint` | `verilator --lint-only -Wall` over the RTL **and** the DPI wrapper | ✅ |
-| `build` | Builds the dev container, runs the C++ backend, regenerates the JPGs, and commits the live results back to the PR branch | ✅ |
-| `rtl-equivalence` | Runs both backends and compares `output.raw` byte for byte with `cmp` | ✅ |
+| `build` | Builds the dev container, runs **both** RAM backends, compares their output byte for byte, regenerates the JPGs, and commits the live results back to the PR branch | ✅ |
 
-Two deliberate notes on scope:
+Both backends run in the same job on purpose: they need the same container, and building it twice doubled CI time for nothing.
 
-- **The UVM testbench does not run in CI.** Vivado is not available on GitHub-hosted runners, so `scripts/run_uvm.sh` is run locally and its XSim log attached to the pull request as evidence. See [RTL & UVM Verification](#rtl--uvm-verification).
-- **`rtl-equivalence` fails until the RTL body is implemented.** `src/rtl/axi4_ram.v` currently declares its AXI4-Full ports but has no logic, so it never asserts `awready` and the bridge's stall guard trips. The job is wired up on purpose so it turns green the moment the RTL lands.
+> **The UVM testbench does not run in CI.** Vivado is not available on GitHub-hosted runners, so `scripts/run_uvm.sh` is run locally and its XSim log attached to the pull request as evidence. See [RTL & UVM Verification](#rtl--uvm-verification).
 
 The results commit carries `[skip ci]` so that CI pushing to the branch does not re-trigger itself.
 
@@ -459,16 +457,18 @@ For the full port map, the frozen DPI contract and the BFM state machine, see [d
 
 ### Backend comparison
 
-Which of the two RAM backends the numbers below come from. CI fills this in; the RTL row stays `pending` until `src/rtl/axi4_ram.v` has logic, because until then the run stalls and `RamAxi`'s guard aborts it.
+Both RAM backends run the same 1080p pipeline, and CI compares their output byte for byte. The figures come straight from the two runs:
 
 <!-- RESULTS:BACKENDS:START -->
 | RAM backend | How | Simulated time at stop | Status |
 |---|---|---|---|
 | C++ behavioural | `make run` | 100 ns | ✅ runs |
-| Verilog AXI4-Full (DPI) | `make run-rtl` | — | ⏳ pending the RTL body |
+| Verilog AXI4-Full (DPI) | `make run-rtl` | 210.05 ms | ✅ runs |
 <!-- RESULTS:BACKENDS:END -->
 
-Everything that follows was measured on the **C++ backend**. Nothing below has passed through the Verilog yet.
+The gap in simulated time is the whole point. The C++ backend computes annotated delays and throws them away, so its 100 ns is just the CPU's polling `wait()`. The RTL backend advances a real clock, so its figure is an actual transfer cost.
+
+The byte counts and pixel checks below are identical for both backends — that is what `cmp` verifies.
 
 ### Output image
 

@@ -104,24 +104,48 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and run simulation
+      - name: Run C++ backend (golden reference)
         run: |
-          # pipefail es imprescindible: sin él el exit code del pipe es el de
-          # `tee` (siempre 0), así que un build roto pasaba como success y
-          # generate_results.py escribía "unknown" en el README sin que nadie
-          # se enterara.
+          # pipefail is essential: without it the pipe's exit code is tee's,
+          # always 0, so a broken build passed as success and
+          # generate_results.py wrote "unknown" into the README unnoticed.
           set -o pipefail
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             systemc-tlm:ci \
-            make run | tee sim.log
+            make run | tee sim-cpp.log
+          cp images/output/output.raw /tmp/reference.raw
+
+      - name: Run RTL backend
+        run: |
+          set -o pipefail
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            systemc-tlm:ci \
+            make run-rtl | tee sim-rtl.log
+
+      # The acceptance test for the whole DPI integration: if both backends
+      # produce the same bytes, the Verilog RAM is functionally identical to the
+      # C++ reference over 8,294,400 bytes of real traffic.
+      - name: Compare backends byte for byte
+        run: |
+          if cmp /tmp/reference.raw images/output/output.raw; then
+            echo "RTL RAM is bit-exact against the C++ reference over $(stat -c%s images/output/output.raw) bytes"
+          else
+            echo "::error::RTL and C++ backends disagree — the Verilog RAM is not functionally equivalent"
+            exit 1
+          fi
 
       - name: Convert RAW output → JPG
         run: python scripts/raw_to_jpg.py images/output/output.raw images/output/output.jpg --gray
 
       - name: Update README with live results
-        run: python scripts/generate_results.py sim.log --readme README.md
+        run: |
+          python scripts/generate_results.py sim-cpp.log \
+            --rtl-log sim-rtl.log \
+            --readme README.md
 
       - name: Commit updated results to the PR branch
         run: |
@@ -131,76 +155,13 @@ jobs:
           if git diff --cached --quiet; then
             echo "No result changes to commit"
           else
-            # [skip ci] evita que este push vuelva a disparar el workflow.
-            # Sin eso queda un run fantasma por cada commit de resultados: lo
-            # dispara github-actions[bot], GitHub lo deja en "action_required"
-            # esperando aprobación, y ensucia los checks del PR sin aportar
-            # nada — el job `changes` lo saltearía igual por el guard de actor.
+            # [skip ci] stops this push from re-triggering the workflow. Without
+            # it every results commit leaves a ghost run: triggered by
+            # github-actions[bot], parked by GitHub in "action_required" waiting
+            # for approval, cluttering the PR checks for nothing — the `changes`
+            # job would skip it anyway because of the actor guard.
             git commit -m "ci: update simulation results [skip ci]"
             git push origin HEAD:${{ github.head_ref }}
-          fi
-
-  # Prueba de aceptación de la integración DPI: correr el sistema completo con
-  # los dos backends de RAM y comparar la salida byte a byte. Si coinciden, la
-  # RAM Verilog es funcionalmente idéntica a la de referencia sobre 8 294 400
-  # bytes de tráfico real.
-  #
-  # HOY FALLA A PROPÓSITO: src/rtl/axi4_ram.v declara sus puertos AXI4-Full pero
-  # no tiene lógica, así que nunca levanta awready y el guard anti-cuelgue de
-  # RamAxi corta la transacción. Queda cableado para que se ponga verde solo en
-  # cuanto el RTL aterrice.
-  rtl-equivalence:
-    needs: changes
-    if: needs.changes.outputs.src == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install Python dependencies
-        run: pip install Pillow numpy
-
-      - name: Prepare simulation input
-        run: python scripts/prepare_input.py
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build dev container image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: .devcontainer/Dockerfile
-          load: true
-          tags: systemc-tlm:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Run C++ backend (golden reference)
-        run: |
-          set -o pipefail
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
-            systemc-tlm:ci make run | tee sim-cpp.log
-          cp images/output/output.raw /tmp/reference.raw
-
-      - name: Run RTL backend
-        run: |
-          set -o pipefail
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
-            systemc-tlm:ci make run-rtl | tee sim-rtl.log
-
-      - name: Compare outputs byte for byte
-        run: |
-          if cmp /tmp/reference.raw images/output/output.raw; then
-            echo "RTL RAM is bit-exact against the C++ reference over $(stat -c%s images/output/output.raw) bytes"
-          else
-            echo "::error::RTL and C++ backends disagree — the Verilog RAM is not functionally equivalent"
-            exit 1
           fi
 
       - name: Upload simulation logs

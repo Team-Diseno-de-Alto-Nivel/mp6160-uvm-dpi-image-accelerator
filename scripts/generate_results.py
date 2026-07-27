@@ -83,6 +83,28 @@ def replace_marker(text: str, name: str, content: str, inline: bool = False) -> 
     return pattern.sub(lambda m: f"{m.group(1)}{sep}{content}{sep}{m.group(3)}", text)
 
 
+UNIT_NS = {"ns": 1.0, "us": 1e3, "ms": 1e6, "s": 1e9}
+
+
+def humanise_time(value: str) -> str:
+    """Rescale a "<number> <unit>" string to the largest unit that keeps it readable.
+
+    The RTL backend reports hundreds of millions of nanoseconds, which is
+    unreadable as a raw figure — and it is the headline result of the whole
+    integration, so it is worth formatting.
+    """
+    try:
+        number, unit = value.split()
+        ns = float(number) * UNIT_NS[unit]
+    except (ValueError, KeyError):
+        return value
+
+    for suffix, scale in (("s", 1e9), ("ms", 1e6), ("us", 1e3)):
+        if ns >= scale:
+            return f"{ns / scale:.2f} {suffix}".replace(".00 ", " ")
+    return f"{ns:g} ns"
+
+
 def backend_table(cpp_time: str, rtl_time: str | None) -> str:
     """Comparativa de los dos backends de RAM.
 
@@ -93,11 +115,11 @@ def backend_table(cpp_time: str, rtl_time: str | None) -> str:
     lines = [
         "| RAM backend | How | Simulated time at stop | Status |",
         "|---|---|---|---|",
-        f"| C++ behavioural | `make run` | {cpp_time} | ✅ runs |",
+        f"| C++ behavioural | `make run` | {humanise_time(cpp_time)} | ✅ runs |",
     ]
     if rtl_time:
         lines.append(
-            f"| Verilog AXI4-Full (DPI) | `make run-rtl` | {rtl_time} | ✅ runs |"
+            f"| Verilog AXI4-Full (DPI) | `make run-rtl` | {humanise_time(rtl_time)} | ✅ runs |"
         )
     else:
         lines.append(
