@@ -27,12 +27,24 @@ jobs:
               - '.github/workflows/**'
               - 'images/input/**'
 
-  # Lint del RTL. Rápido y sin Docker: instala Verilator desde apt sólo para
-  # revisar sintaxis y estilo, no para simular.
+  # Verifica que exista cada entregable que pide docs/Enunciado.md. Barato y
+  # rápido: evita descubrir la víspera de la entrega que falta un artefacto.
+  deliverables:
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required deliverables exist
+        run: ./scripts/check_deliverables.sh
+
+  # Lint del RTL y del wrapper DPI. Sin Docker: instala Verilator desde apt sólo
+  # para revisar sintaxis y estilo, no para simular.
   #
-  # Es bloqueante a propósito: hoy pasa limpio (el stub al final de axi4_ram.v
-  # se encarga de eso) y debe seguir pasando limpio cuando el módulo esté
-  # implementado de verdad.
+  # Cubre los dos archivos a propósito. La versión de apt del runner difiere de
+  # la del contenedor, y esa diferencia ya cazó un BLKSEQ que la local no
+  # reportaba — tener dos versiones es cobertura, no redundancia.
   lint:
     needs: changes
     if: needs.changes.outputs.src == 'true'
@@ -44,8 +56,18 @@ jobs:
       - name: Install Verilator
         run: sudo apt-get update && sudo apt-get install -y verilator
 
+      - name: Report Verilator version
+        run: verilator --version
+
       - name: Lint RTL
         run: verilator --lint-only -Wall src/rtl/axi4_ram.v
+
+      - name: Lint DPI wrapper + RTL
+        run: |
+          verilator --lint-only -Wall \
+            --top-module axi_ram_dpi \
+            +incdir+src/dpi \
+            src/rtl/axi4_ram.v src/dpi/axi_ram_dpi.sv
 
   build:
     needs: changes
@@ -117,3 +139,76 @@ jobs:
             git commit -m "ci: update simulation results [skip ci]"
             git push origin HEAD:${{ github.head_ref }}
           fi
+
+  # Prueba de aceptación de la integración DPI: correr el sistema completo con
+  # los dos backends de RAM y comparar la salida byte a byte. Si coinciden, la
+  # RAM Verilog es funcionalmente idéntica a la de referencia sobre 8 294 400
+  # bytes de tráfico real.
+  #
+  # HOY FALLA A PROPÓSITO: src/rtl/axi4_ram.v declara sus puertos AXI4-Full pero
+  # no tiene lógica, así que nunca levanta awready y el guard anti-cuelgue de
+  # RamAxi corta la transacción. Queda cableado para que se ponga verde solo en
+  # cuanto el RTL aterrice.
+  rtl-equivalence:
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python dependencies
+        run: pip install Pillow numpy
+
+      - name: Prepare simulation input
+        run: python scripts/prepare_input.py
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build dev container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Dockerfile
+          load: true
+          tags: systemc-tlm:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run C++ backend (golden reference)
+        run: |
+          set -o pipefail
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
+            systemc-tlm:ci make run | tee sim-cpp.log
+          cp images/output/output.raw /tmp/reference.raw
+
+      - name: Run RTL backend
+        run: |
+          set -o pipefail
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace \
+            systemc-tlm:ci make run-rtl | tee sim-rtl.log
+
+      - name: Compare outputs byte for byte
+        run: |
+          if cmp /tmp/reference.raw images/output/output.raw; then
+            echo "RTL RAM is bit-exact against the C++ reference over $(stat -c%s images/output/output.raw) bytes"
+          else
+            echo "::error::RTL and C++ backends disagree — the Verilog RAM is not functionally equivalent"
+            exit 1
+          fi
+
+      - name: Upload simulation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-logs
+          path: |
+            sim-cpp.log
+            sim-rtl.log
+          if-no-files-found: warn
