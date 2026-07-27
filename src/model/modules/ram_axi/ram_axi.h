@@ -4,11 +4,11 @@
 #include <tlm>
 #include <tlm_utils/simple_target_socket.h>
 
-// RAM respaldada por el RTL Verilog: traduce cada b_transport en transacciones
-// AXI4-Full contra src/rtl/axi4_ram.v, a través del puente DPI-C.
+// RAM backed by the Verilog RTL: turns every b_transport into AXI4-Full
+// transactions against src/rtl/axi4_ram.v, through the DPI-C bridge.
 //
-// Interfaz idéntica a RAM (src/model/modules/ram/ram.h) para que el Bus pueda
-// enlazar cualquiera de las dos sin cambios.
+// Interface identical to RAM (src/model/modules/ram/ram.h) so the Bus can bind
+// either one without changes.
 SC_MODULE(RamAxi)
 {
 public:
@@ -21,12 +21,12 @@ public:
                      sc_core::sc_time& delay);
 
 private:
-    // Medio período: cada tick() del RTL avanza el tiempo simulado de SystemC
-    // en esta cantidad, de modo que sc_time_stamp() refleje transferencia real.
+    // Half a clock period: every RTL tick() advances SystemC's simulated time by
+    // this much, so sc_time_stamp() reflects real transfer cost.
     static const sc_core::sc_time HALF_PERIOD;
 
-    // Cota de seguridad: si una transacción no termina en esta cantidad de
-    // flancos, algo se colgó (típicamente un handshake AXI mal implementado).
+    // Safety bound: if a transaction does not finish within this many clock
+    // edges something has hung, typically a mis-implemented AXI handshake.
     static constexpr uint64_t MAX_TICKS_PER_TRANSACTION = 10000000;
 
     void run_transaction(int cmd, uint64_t addr, unsigned int len);

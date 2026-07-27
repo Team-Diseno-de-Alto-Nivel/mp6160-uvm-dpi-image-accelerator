@@ -1,95 +1,96 @@
 #pragma once
 
 // -----------------------------------------------------------------------------
-// Contrato DPI-C entre el modelo SystemC y la RAM AXI4-Full en Verilog (T3.1)
+// DPI-C contract between the SystemC model and the Verilog AXI4-Full RAM
 // -----------------------------------------------------------------------------
-// CONTRATO CONGELADO. Los integrantes 1 (RTL), 2 (UVM) y 3 (DPI) trabajan
-// contra estas cinco funciones. No cambiarlas sin avisar al equipo.
+// FROZEN CONTRACT. The RTL, the UVM testbench and the DPI bridge are all written
+// against these five functions. Do not change them without telling the team.
 //
-// Dirección de las llamadas:
+// Call directions:
 //
 //   SystemC (C++)                          SystemVerilog (src/dpi/axi_ram_dpi.sv)
 //   ─────────────                          ──────────────────────────────────────
-//   axi_dpi_req()      ──── export ────►   encola la petición
-//   axi_dpi_done()     ──── export ────►   ¿terminó?
-//   axi_dpi_resp()     ──── export ────►   respuesta AXI (BRESP/RRESP)
-//   axi_dpi_get_wbyte()◄─── import ────    el BFM pide el byte a escribir
-//   axi_dpi_put_rbyte()◄─── import ────    el BFM entrega el byte leído
+//   axi_dpi_req()      ──── export ────►   enqueue the request
+//   axi_dpi_done()     ──── export ────►   has it finished?
+//   axi_dpi_resp()     ──── export ────►   AXI response (BRESP/RRESP)
+//   axi_dpi_get_wbyte()◄─── import ────    BFM asks for a byte to write
+//   axi_dpi_put_rbyte()◄─── import ────    BFM hands back a byte it read
 //
-// Por qué este patrón request/poll y no una tarea DPI bloqueante:
-// Verilator NO permite que una función DPI exportada consuma tiempo de
-// simulación. Entonces `axi_dpi_req` solo encola y retorna; el AXI master BFM
-// avanza en un `always_ff` a medida que el lado C++ hace tick del reloj, y el
-// lado C++ sondea `axi_dpi_done()`. Este patrón también funciona en Vivado
-// XSim y en Questa, así que el wrapper es portable.
+// Why request/poll instead of a blocking DPI task:
+// Verilator does NOT allow an exported DPI function to consume simulation time.
+// So `axi_dpi_req` only enqueues and returns; the AXI master BFM advances inside
+// an `always_ff` as the C++ side ticks the clock, and the C++ side polls
+// `axi_dpi_done()`. The same pattern works in Vivado XSim and Questa, which
+// keeps the wrapper portable.
 // -----------------------------------------------------------------------------
 
 #include <cstdint>
 
-// ── Comandos aceptados por axi_dpi_req ───────────────────────────────────────
+// ── Commands accepted by axi_dpi_req ─────────────────────────────────────────
 #define AXI_DPI_CMD_READ  0
 #define AXI_DPI_CMD_WRITE 1
 
-// ── Códigos de respuesta devueltos por axi_dpi_resp ──────────────────────────
+// ── Response codes returned by axi_dpi_resp ──────────────────────────────────
 #define AXI_DPI_RESP_OKAY   0
 #define AXI_DPI_RESP_SLVERR 2
 
-// Tamaño máximo de una petición. El BFM parte lo que exceda un burst AXI
-// (256 beats) en ráfagas sucesivas, pero el buffer de intercambio es finito.
+// Largest request the bridge accepts. The BFM splits anything longer than one
+// AXI burst (256 beats) into successive bursts, but the exchange buffer is
+// finite, so RamAxi chunks larger TLM payloads above this layer.
 #define AXI_DPI_MAX_BYTES (1024 * 1024)
 
 extern "C" {
 
-// ── Exportadas desde SystemVerilog, las llama el C++ ─────────────────────────
+// ── Exported from SystemVerilog, called by the C++ side ──────────────────────
 
-/// Encola una petición. No consume tiempo de simulación: retorna de inmediato.
-/// @param cmd   AXI_DPI_CMD_READ o AXI_DPI_CMD_WRITE
-/// @param addr  dirección byte, relativa a la base de la RAM (0-based)
-/// @param len   cantidad de bytes; debe ser 1..AXI_DPI_MAX_BYTES
+/// Enqueues a request. Does not consume simulation time: returns immediately.
+/// @param cmd   AXI_DPI_CMD_READ or AXI_DPI_CMD_WRITE
+/// @param addr  byte address, relative to the RAM base (0-based)
+/// @param len   byte count; must be 1..AXI_DPI_MAX_BYTES
 void axi_dpi_req(int cmd, long long addr, int len);
 
-/// @return 1 cuando la última petición encolada terminó, 0 mientras corre.
+/// @return 1 once the enqueued request has finished, 0 while it runs.
 int axi_dpi_done();
 
-/// @return AXI_DPI_RESP_OKAY o AXI_DPI_RESP_SLVERR de la última petición.
-///         Solo es válido cuando axi_dpi_done() devuelve 1.
+/// @return AXI_DPI_RESP_OKAY or AXI_DPI_RESP_SLVERR for the last request.
+///         Only valid once axi_dpi_done() returns 1.
 int axi_dpi_resp();
 
-// ── Importadas por SystemVerilog, las implementa el C++ ──────────────────────
-// (definidas en src/dpi/axi_ram_dpi.cpp — T3.3)
+// ── Imported by SystemVerilog, implemented by the C++ side ───────────────────
+// (defined in src/dpi/axi_ram_dpi.cpp)
 
-/// El BFM pide el byte número `idx` del buffer de escritura.
+/// The BFM asks for byte `idx` of the write buffer.
 unsigned char axi_dpi_get_wbyte(int idx);
 
-/// El BFM entrega el byte número `idx` leído de la RAM.
+/// The BFM hands back byte `idx` read from the RAM.
 void axi_dpi_put_rbyte(int idx, unsigned char val);
 
 }  // extern "C"
 
 // -----------------------------------------------------------------------------
-// API que consume el SC_MODULE RamAxi (src/model/modules/ram_axi/) — T3.4
+// API consumed by the RamAxi SC_MODULE (src/model/modules/ram_axi/)
 // -----------------------------------------------------------------------------
 namespace axi_dpi {
 
-/// Instancia el modelo Verilated y lo mantiene en reset unos ciclos.
-/// Debe llamarse una sola vez, antes de la primera transacción.
+/// Instantiates the Verilated model and holds it in reset for a few cycles.
+/// Must be called exactly once, before the first transaction.
 void init();
 
-/// Avanza el reloj del modelo Verilated medio período (un flanco).
-/// El SC_MODULE la llama en bucle intercalando `wait()` para que el tiempo
-/// simulado de SystemC avance junto con el del RTL.
+/// Advances the Verilated model's clock by half a period (one edge).
+/// RamAxi calls this in a loop interleaved with `wait()` so that SystemC's
+/// simulated time advances alongside the RTL's.
 void tick();
 
-/// Libera el modelo Verilated. Llamar al final de la simulación.
+/// Releases the Verilated model. Call at the end of the simulation.
 void shutdown();
 
-/// Copia `len` bytes al buffer de escritura antes de lanzar un WRITE.
+/// Copies `len` bytes into the write buffer before issuing a WRITE.
 void load_write_buffer(const unsigned char* src, int len);
 
-/// Copia `len` bytes del buffer de lectura después de que un READ terminó.
+/// Copies `len` bytes out of the read buffer after a READ has finished.
 void store_read_buffer(unsigned char* dst, int len);
 
-/// Cantidad acumulada de flancos de reloj aplicados al RTL. Sólo para logging.
+/// Total clock edges applied to the RTL so far. Logging only.
 uint64_t tick_count();
 
 }  // namespace axi_dpi

@@ -46,8 +46,8 @@ int sc_main(int argc, char* argv[])
     Disk        disk("disk");
     Accelerator accelerator("accelerator");
 
-    // Sólo se instancia el backend elegido. Ambos exponen el mismo
-    // simple_target_socket, así que el Bus enlaza igual en los dos casos.
+    // Only the selected backend is instantiated. Both expose the same
+    // simple_target_socket, so the Bus binds identically either way.
     std::unique_ptr<RAM> ram;
 #ifdef HAVE_RTL_RAM
     std::unique_ptr<RamAxi> ram_rtl;

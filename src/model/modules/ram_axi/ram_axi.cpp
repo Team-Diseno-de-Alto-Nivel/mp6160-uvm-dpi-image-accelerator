@@ -25,9 +25,9 @@ RamAxi::~RamAxi()
     axi_dpi::shutdown();
 }
 
-// Encola la petición y hace avanzar el reloj del RTL hasta que el BFM la marca
-// terminada. Cada flanco consume tiempo simulado, así que a diferencia del
-// modelo puramente C++ acá sc_time_stamp() sí es significativo.
+// Enqueues the request and advances the RTL clock until the BFM marks it done.
+// Every edge consumes simulated time, so unlike the pure C++ model,
+// sc_time_stamp() is actually meaningful here.
 void RamAxi::run_transaction(int cmd, uint64_t addr, unsigned int len)
 {
     axi_dpi_req(cmd, static_cast<long long>(addr), static_cast<int>(len));
@@ -70,10 +70,10 @@ void RamAxi::b_transport(tlm::tlm_generic_payload& payload,
         return;
     }
 
-    // El buffer de intercambio del puente es acotado, pero el CPU transfiere la
-    // imagen completa de un tiro (6,220,800 B de entrada y 2,073,600 B de
-    // salida). Se parte acá, no en el contrato DPI, para no atar el tamaño del
-    // buffer al de la imagen.
+    // The bridge's exchange buffer is bounded, but the CPU moves the whole image
+    // in one go (6,220,800 B in, 2,073,600 B out). Splitting happens here rather
+    // than in the DPI contract so the buffer size is not tied to the image
+    // size.
     const int dpi_cmd = (cmd == tlm::TLM_WRITE_COMMAND) ? AXI_DPI_CMD_WRITE
                                                         : AXI_DPI_CMD_READ;
 

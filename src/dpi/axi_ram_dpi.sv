@@ -1,12 +1,13 @@
-// axi_ram_dpi — expone la RAM AXI4-Full al modelo SystemC vía DPI-C.
+// axi_ram_dpi — exposes the AXI4-Full RAM to the SystemC model over DPI-C.
 //
-// Patrón request/poll: `axi_dpi_req()` sólo encola y retorna, porque Verilator
-// no permite que una función DPI exportada consuma tiempo de simulación. El BFM
-// avanza en el `always_ff` a medida que el C++ hace tick del reloj, y el C++
-// sondea `axi_dpi_done()`.
+// Request/poll pattern: `axi_dpi_req()` only enqueues and returns, because an
+// exported DPI function cannot consume simulation time — a Verilator
+// restriction this split works around.
+// The BFM advances inside the `always_ff` as the C++ side ticks the clock, and
+// the C++ side polls `axi_dpi_done()`.
 //
-// Todos los beats son de ancho completo; la cobertura parcial en los extremos
-// se resuelve con WSTRB en vez de emitir beats angostos.
+// Every beat is full width; partial coverage at the ends of a request is handled
+// with WSTRB rather than by issuing narrow beats.
 
 `timescale 1ns / 1ps
 
@@ -26,8 +27,8 @@ module axi_ram_dpi #(
     localparam int BYTES_PER_BEAT = DATA_WIDTH / 8;
     localparam int LANE_BITS      = $clog2(BYTES_PER_BEAT);
 
-    // Duplicados en longint: sin esto la aritmética de direcciones mezcla
-    // 32 y 64 bits y el lint se llena de WIDTHEXPAND.
+    // Duplicated as longint: without these, address arithmetic mixes 32- and
+    // 64-bit operands and the lint fills up with WIDTHEXPAND.
     localparam longint BPB       = longint'(DATA_WIDTH / 8);
     localparam longint MAX_BEATS = 256;
     localparam longint BOUNDARY  = 4096;
@@ -69,9 +70,9 @@ module axi_ram_dpi #(
     wire                       rvalid;
     logic                      rready;
 
-    // Handshake por número de secuencia: el DPI incrementa `req_seq`, la FSM
-    // copia a `ack_seq` al terminar. Así ninguna variable tiene dos escritores,
-    // que es lo que Verilator reporta como MULTIDRIVEN.
+    // Sequence-number handshake: DPI increments `req_seq`, the FSM copies it to
+    // `ack_seq` when done. This way no variable has two writers, which the lint
+    // would otherwise report as MULTIDRIVEN.
     int     req_seq = 0;
     int     req_cmd = 0;
     longint req_addr = 0;
@@ -81,9 +82,9 @@ module axi_ram_dpi #(
     int     ack_pending;
     int     req_resp;
 
-    longint next_byte;    // primer byte todavía no transferido
-    longint end_byte;     // último byte de la petición, inclusive
-    longint beat_base;    // dirección alineada del beat en curso
+    longint next_byte;    // first byte not transferred yet
+    longint end_byte;     // last byte of the request, inclusive
+    longint beat_base;    // aligned address of the beat in flight
     longint beats_left;
 
     function void axi_dpi_req(input int cmd, input longint addr, input int len);
@@ -101,8 +102,8 @@ module axi_ram_dpi #(
         return req_resp;
     endfunction
 
-    // Beats que caben desde `from` sin pasar el final de la petición, sin cruzar
-    // el límite de 4 KB y sin exceder 256 beats.
+    // How many beats fit from `from` without running past the end of the
+    // request, without crossing the 4 KB boundary, and without exceeding 256.
     function automatic longint beats_for_burst(input longint from, input longint last);
         longint aligned;
         longint boundary_end;
@@ -124,8 +125,8 @@ module axi_ram_dpi #(
 
     state_t state;
 
-    // Un carril del beat participa si su byte cae dentro de la petición. Los
-    // extremos no alineados quedan cubiertos por WSTRB.
+    // A lane takes part when its byte falls inside the request. Unaligned ends
+    // are covered by WSTRB.
     function automatic bit lane_in_range(input int lane);
         longint byte_addr;
         begin
@@ -134,9 +135,10 @@ module axi_ram_dpi #(
         end
     endfunction
 
-    // Estas dos devuelven valores en vez de escribir wdata/wstrb directamente:
-    // así el always_ff asigna sólo con `<=` y no se mezcla bloqueante con no
-    // bloqueante sobre señales secuenciales (Verilator lo reporta como BLKSEQ).
+    // These two return values instead of writing wdata/wstrb directly, so the
+    // always_ff assigns with `<=` only and blocking assignments never mix with
+    // non-blocking ones on sequential signals (Verilator reports that as
+    // BLKSEQ).
     function automatic logic [DATA_WIDTH-1:0] write_beat_data();
         logic [DATA_WIDTH-1:0] d;
         longint                byte_addr;
@@ -198,8 +200,8 @@ module axi_ram_dpi #(
                         beat_base   <= req_addr & ~(BPB - 1);
 
                         if (req_len < 1 || req_len > AXI_DPI_MAX_BYTES) begin
-                            // Fuera del rango que el contrato permite: se
-                            // rechaza sin tocar el bus.
+                            // Outside the range the contract allows: reject it
+                            // without touching the bus.
                             req_resp <= AXI_DPI_RESP_SLVERR;
                             ack_seq  <= req_seq;
                         end else if (req_cmd == AXI_DPI_CMD_WRITE) begin
@@ -247,9 +249,16 @@ module axi_ram_dpi #(
                         end else begin
                             beats_left <= beats_left - 1;
                             wlast      <= (beats_left == 2);
-                            // write_beat_data/strb leen next_byte y beat_base,
-                            // que son NBA y todavía no se actualizaron: el beat
-                            // siguiente se arma un ciclo después.
+                            // write_beat_data/strb read next_byte and beat_base,
+                            // which are non-blocking and have not updated yet,
+                            // so the next beat is assembled one cycle later.
+                            //
+                            // wvalid MUST drop while it is assembled. Held high,
+                            // the slave accepts another beat with stale wdata and
+                            // consumes the burst faster than the master thinks:
+                            // the slave drops wready when it finishes and the
+                            // master waits forever.
+                            wvalid     <= 1'b0;
                             state      <= S_WR_DATA_NEXT;
                         end
                     end
