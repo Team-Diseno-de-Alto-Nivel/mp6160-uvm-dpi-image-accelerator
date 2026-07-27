@@ -27,6 +27,28 @@ jobs:
               - '.github/workflows/**'
               - 'images/input/**'
 
+  # Lint del RTL. Rápido y sin Docker: instala Verilator desde apt sólo para
+  # revisar sintaxis y estilo, no para simular.
+  #
+  # TODO(integrante 4) — quitar `continue-on-error` cuando T1.2 esté mergeada.
+  # Hoy src/rtl/axi4_ram.v es sólo la lista de puertos con el cuerpo vacío, así
+  # que -Wall reporta todas las entradas como no usadas. Una vez implementado el
+  # módulo, el lint debe pasar limpio y este job debe poder bloquear el merge.
+  lint:
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Verilator
+        run: sudo apt-get update && sudo apt-get install -y verilator
+
+      - name: Lint RTL
+        run: verilator --lint-only -Wall src/rtl/axi4_ram.v
+
   build:
     needs: changes
     if: needs.changes.outputs.src == 'true'

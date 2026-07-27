@@ -1,0 +1,27 @@
+# Normalizacion de finales de linea.
+# Por defecto git decide; abajo se fija lo que no puede quedar al azar.
+
+* text=auto
+
+# Scripts de Windows: CRLF obligatorio.
+# Un .bat con finales LF falla de formas raras en cmd.exe.
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Scripts de shell: LF obligatorio, incluso si se clonan en Windows.
+*.sh   text eol=lf
+
+# Fuentes: LF.
+*.c    text eol=lf
+*.h    text eol=lf
+*.cpp  text eol=lf
+*.v    text eol=lf
+*.sv   text eol=lf
+*.svh  text eol=lf
+*.f    text eol=lf
+
+# Binarios: git no los toca.
+*.raw  binary
+*.jpg  binary
+*.png  binary
+*.wdb  binary
