@@ -33,7 +33,7 @@ uint64_t g_ticks    = 0;
 void require_init(const char* who) {
     if (!g_top) {
         std::fprintf(stderr,
-                     "axi_ram_dpi: %s llamado antes de axi_dpi::init()\n", who);
+                     "axi_ram_dpi: %s called before axi_dpi::init()\n", who);
         std::abort();
     }
 }
@@ -44,7 +44,7 @@ void require_init(const char* who) {
 
 extern "C" unsigned char axi_dpi_get_wbyte(int idx) {
     if (idx < 0 || static_cast<size_t>(idx) >= g_buffer.size()) {
-        std::fprintf(stderr, "axi_dpi_get_wbyte: idx %d fuera de rango\n", idx);
+        std::fprintf(stderr, "axi_dpi_get_wbyte: idx %d out of range\n", idx);
         std::abort();
     }
     return g_buffer[static_cast<size_t>(idx)];
@@ -52,7 +52,7 @@ extern "C" unsigned char axi_dpi_get_wbyte(int idx) {
 
 extern "C" void axi_dpi_put_rbyte(int idx, unsigned char val) {
     if (idx < 0 || static_cast<size_t>(idx) >= g_buffer.size()) {
-        std::fprintf(stderr, "axi_dpi_put_rbyte: idx %d fuera de rango\n", idx);
+        std::fprintf(stderr, "axi_dpi_put_rbyte: idx %d out of range\n", idx);
         std::abort();
     }
     g_buffer[static_cast<size_t>(idx)] = val;
@@ -74,7 +74,7 @@ void init() {
         std::string(g_top->name()) + "." + SV_MODULE;
     svScope scope = svGetScopeFromName(scope_name.c_str());
     if (!scope) {
-        std::fprintf(stderr, "axi_ram_dpi: no existe el scope SV '%s'\n",
+        std::fprintf(stderr, "axi_ram_dpi: SV scope '%s' does not exist\n",
                      scope_name.c_str());
         std::abort();
     }
@@ -109,7 +109,7 @@ void shutdown() {
 
 void load_write_buffer(const unsigned char* src, int len) {
     if (len < 0 || static_cast<size_t>(len) > g_buffer.size()) {
-        std::fprintf(stderr, "load_write_buffer: len %d fuera de rango\n", len);
+        std::fprintf(stderr, "load_write_buffer: len %d out of range\n", len);
         std::abort();
     }
     std::copy(src, src + len, g_buffer.begin());
@@ -117,7 +117,7 @@ void load_write_buffer(const unsigned char* src, int len) {
 
 void store_read_buffer(unsigned char* dst, int len) {
     if (len < 0 || static_cast<size_t>(len) > g_buffer.size()) {
-        std::fprintf(stderr, "store_read_buffer: len %d fuera de rango\n", len);
+        std::fprintf(stderr, "store_read_buffer: len %d out of range\n", len);
         std::abort();
     }
     std::copy(g_buffer.begin(), g_buffer.begin() + len, dst);

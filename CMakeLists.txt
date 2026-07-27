@@ -31,12 +31,12 @@ else()
 endif()
 
 # ── RTL RAM via Verilator + DPI (optional) ────────────────────────────────────
-# Sin Verilator el proyecto compila igual, pero sin el modo --rtl-ram.
+# Without Verilator the project still builds, just without the --rtl-ram mode.
 find_package(verilator QUIET HINTS $ENV{VERILATOR_ROOT})
 
-# Verilator no tolera espacios en las rutas: su verilated.mk es un Makefile de
-# GNU Make, y el parser JSON de verilate() también se rompe. Se detecta acá para
-# que `make` siga funcionando en vez de fallar al configurar.
+# Verilator does not tolerate spaces in paths: its verilated.mk is a GNU Make
+# file, and verilate()'s JSON parser breaks too. Detected here so that `make`
+# keeps working instead of failing at configure time.
 set(RTL_PATH_OK TRUE)
 if(CMAKE_CURRENT_SOURCE_DIR MATCHES "[ \t]" OR CMAKE_BINARY_DIR MATCHES "[ \t]")
     set(RTL_PATH_OK FALSE)

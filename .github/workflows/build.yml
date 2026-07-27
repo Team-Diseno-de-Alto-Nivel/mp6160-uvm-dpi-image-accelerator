@@ -27,8 +27,8 @@ jobs:
               - '.github/workflows/**'
               - 'images/input/**'
 
-  # Verifica que exista cada entregable que pide docs/Enunciado.md. Barato y
-  # rápido: evita descubrir la víspera de la entrega que falta un artefacto.
+  # Checks that every deliverable docs/Enunciado.md asks for exists. Cheap and
+  # fast: avoids discovering a missing artifact the night before submission.
   deliverables:
     needs: changes
     if: needs.changes.outputs.src == 'true'
@@ -39,12 +39,12 @@ jobs:
       - name: Check required deliverables exist
         run: ./scripts/check_deliverables.sh
 
-  # Lint del RTL y del wrapper DPI. Sin Docker: instala Verilator desde apt sólo
-  # para revisar sintaxis y estilo, no para simular.
+  # Lints the RTL and the DPI wrapper. No Docker: installs Verilator from apt
+  # only to check syntax and style, not to simulate.
   #
-  # Cubre los dos archivos a propósito. La versión de apt del runner difiere de
-  # la del contenedor, y esa diferencia ya cazó un BLKSEQ que la local no
-  # reportaba — tener dos versiones es cobertura, no redundancia.
+  # Covers both files on purpose. The runner's apt version differs from the
+  # container's, and that difference already caught a BLKSEQ the local one did
+  # not report — two versions is coverage, not redundancy.
   lint:
     needs: changes
     if: needs.changes.outputs.src == 'true'

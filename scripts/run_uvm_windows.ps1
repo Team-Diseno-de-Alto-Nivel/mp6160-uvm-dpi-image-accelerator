@@ -1,56 +1,55 @@
 <#
 .SYNOPSIS
-    Corre el testbench UVM de la RAM AXI4-Full en Vivado 2019.2 sobre Windows.
+    Runs the AXI4-Full RAM's UVM testbench in Vivado 2019.2 on Windows.
 
 .DESCRIPTION
-    Equivalente a scripts/run_uvm.sh, pero pensado como una corrida de CI/CD
-    manual: prepara el entorno, actualiza el repo, compila, simula todos los
-    tests y deja TODO lo generado en la carpeta exports\.
+    Equivalent to scripts/run_uvm.sh, but shaped as a manual CI/CD run: sets up
+    the environment, updates the repo, compiles, simulates every test and leaves
+    everything it produced under exports\.
 
-    Pasos que ejecuta:
-      1. Localiza Vivado 2019.2 y carga su entorno (settings64.bat)
-      2. Clona o actualiza el repositorio
-      3. xvlog  - analiza el RTL y el testbench
-      4. xelab  - elabora el snapshot
-      5. xsim   - corre cada test
-      6. Parsea el reporte de UVM y arma un resumen
-      7. Copia logs, waveforms y cobertura a exports\<timestamp>\
+    Steps:
+      1. Locate Vivado 2019.2 and load its environment (settings64.bat)
+      2. Clone or update the repository
+      3. xvlog  - analyse the RTL and the testbench
+      4. xelab  - elaborate the snapshot
+      5. xsim   - run each test
+      6. Parse UVM's report and build a summary
+      7. Copy logs, waveforms and coverage into exports\<timestamp>\
 
-    NOTA: el archivo es ASCII a proposito. Windows PowerShell 5.1 lee los .ps1
-    sin BOM como ANSI, asi que cualquier acento o caracter de dibujo saldria
-    corrupto en consola.
+    NOTE: this file is ASCII on purpose. Windows PowerShell 5.1 reads .ps1 files
+    without a BOM as ANSI, so any accent or box-drawing character would come out
+    corrupted on the console.
 
 .PARAMETER Test
-    Test a correr. Por defecto corre todos los de la lista.
+    Test to run. Runs every test in the list by default.
 
 .PARAMETER Repo
-    URL del repositorio a clonar. Si se omite y el script ya esta dentro de un
-    clon, usa ese.
+    Repository URL to clone. If omitted and the script already sits inside a
+    clone, that clone is used.
 
 .PARAMETER WorkDir
-    Donde clonar. Por defecto, la carpeta actual.
+    Where to clone. Defaults to the current folder.
 
 .PARAMETER VivadoPath
-    Raiz de la instalacion de Vivado. Si se omite, la busca en las rutas
-    tipicas de instalacion.
+    Vivado installation root. If omitted, the usual install paths are probed.
 
 .PARAMETER Gui
-    Abre la GUI de XSim en vez de correr en batch. Solo con un test a la vez.
+    Opens the XSim GUI instead of running in batch. One test at a time only.
 
 .PARAMETER NoPull
-    No hace git pull; usa el arbol de trabajo tal como esta.
+    Skips git pull; uses the working tree as it is.
 
 .EXAMPLE
     .\scripts\run_uvm_windows.ps1
-    Corre todos los tests y exporta resultados.
+    Runs every test and exports the results.
 
 .EXAMPLE
     .\scripts\run_uvm_windows.ps1 -Test smoke_test -Gui
-    Abre la GUI de XSim con el smoke test.
+    Opens the XSim GUI with the smoke test.
 
 .EXAMPLE
     .\scripts\run_uvm_windows.ps1 -Repo https://github.com/Team-Diseno-de-Alto-Nivel/mp6160-uvm-dpi-image-accelerator.git -WorkDir C:\work
-    Clona limpio en C:\work y corre todo.
+    Clones fresh into C:\work and runs everything.
 #>
 
 [CmdletBinding()]
@@ -66,15 +65,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Tests definidos en docs/PlanUVM.md. base_test es la clase base, no se corre
-# suelta.
+# Tests defined in docs/PlanUVM.md. base_test is the base class, never run alone.
 $AllTests = @("smoke_test", "burst_test", "narrow_test", "error_test", "random_test")
 
 $Snapshot  = "tb_snap"
 $TopModule = "tb_top"
 
 # -----------------------------------------------------------------------------
-# Utilidades de salida
+# Output helpers
 # -----------------------------------------------------------------------------
 
 function Write-Step { param([string]$Message)
@@ -94,11 +92,11 @@ function Fail {
 }
 
 # -----------------------------------------------------------------------------
-# Paso 1 - Entorno de Vivado
+# Step 1 - Vivado environment
 # -----------------------------------------------------------------------------
-# settings64.bat exporta variables en una sesion de cmd. PowerShell no hereda
-# nada de un .bat, asi que el truco es correrlo en cmd, volcar el entorno
-# resultante con `set`, y reimportarlo aca.
+# settings64.bat exports variables into a cmd session. PowerShell inherits
+# nothing from a .bat, so the trick is to run it under cmd, dump the resulting
+# environment with `set`, and re-import it here.
 
 function Import-VivadoEnvironment {
     param([string]$Root)
@@ -122,10 +120,10 @@ function Import-VivadoEnvironment {
     }
 
     if (-not $settings) {
-        Write-Err "No encontre settings64.bat de Vivado 2019.2."
-        Write-Err "Rutas probadas:"
+        Write-Err "Could not find Vivado 2019.2 settings64.bat."
+        Write-Err "Paths probed:"
         foreach ($c in $candidates) { Write-Err "  $c" }
-        Fail "Pasa la ruta con -VivadoPath 'C:\ruta\a\Vivado\2019.2'"
+        Fail "Pass the path with -VivadoPath 'C:\path\to\Vivado\2019.2'"
     }
 
     Write-Ok "settings64.bat: $settings"
@@ -133,7 +131,7 @@ function Import-VivadoEnvironment {
     $cmdLine = '"' + $settings + '" && set'
     $dump = & cmd.exe /c $cmdLine
     if ($LASTEXITCODE -ne 0) {
-        Fail "settings64.bat fallo con codigo $LASTEXITCODE"
+        Fail "settings64.bat failed with code $LASTEXITCODE"
     }
 
     foreach ($line in $dump) {
@@ -144,12 +142,12 @@ function Import-VivadoEnvironment {
 
     foreach ($tool in @("xvlog", "xelab", "xsim")) {
         if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
-            Fail "$tool no quedo en el PATH tras cargar el entorno de Vivado."
+            Fail "$tool is not on the PATH after loading the Vivado environment."
         }
     }
 
-    # La bandera de version cambia entre releases de XSim, asi que esto es
-    # informativo y nunca debe abortar la corrida.
+    # The version flag differs across XSim releases, so this is informational
+    # and must never abort the run.
     $reported = $null
     foreach ($flag in @("--version", "-version")) {
         try {
@@ -161,60 +159,60 @@ function Import-VivadoEnvironment {
     if ($reported) {
         Write-Ok "$reported"
         if ($reported -notmatch "2019\.2") {
-            Write-Warn "Se esperaba Vivado 2019.2. El testbench apunta a UVM 1.2;"
-            Write-Warn "en otras versiones puede haber diferencias de biblioteca."
+            Write-Warn "Expected Vivado 2019.2. The testbench targets UVM 1.2;"
+            Write-Warn "other versions may ship a different library."
         }
     } else {
-        Write-Warn "No pude leer la version de xvlog (no es un problema)."
+        Write-Warn "Could not read the xvlog version (not a problem)."
     }
 }
 
 # -----------------------------------------------------------------------------
-# Paso 2 - Repositorio
+# Step 2 - Repository
 # -----------------------------------------------------------------------------
 
 function Resolve-Repository {
     param([string]$RepoUrl, [string]$Target)
 
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Fail "git no esta en el PATH. Instala Git for Windows."
+        Fail "git is not on the PATH. Install Git for Windows."
     }
 
-    # Sin -Repo: asumimos que el script corre desde adentro del clon.
+    # Without -Repo: assume the script runs from inside the clone.
     if (-not $RepoUrl) {
         $here = Split-Path -Parent $PSScriptRoot
         if (-not (Test-Path (Join-Path $here ".git"))) {
-            Fail "El script no esta dentro de un clon de git y no se paso -Repo."
+            Fail "The script is not inside a git clone and -Repo was not given."
         }
-        Write-Ok "Usando el clon existente: $here"
+        Write-Ok "Using the existing clone: $here"
 
         if (-not $NoPull) {
             Push-Location $here
             try {
                 $branch = (& git rev-parse --abbrev-ref HEAD)
-                Write-Ok "Rama: $branch - actualizando"
+                Write-Ok "Branch: $branch - updating"
                 & git pull --ff-only
                 if ($LASTEXITCODE -ne 0) {
-                    Write-Warn "git pull fallo; sigo con el arbol local tal cual."
+                    Write-Warn "git pull failed; continuing with the local tree as is."
                 }
             } finally { Pop-Location }
         }
         return $here
     }
 
-    # Con -Repo: clonar (o actualizar si ya existe).
+    # With -Repo: clone, or update if it already exists.
     if (-not $Target) { $Target = (Get-Location).Path }
     $name = [System.IO.Path]::GetFileNameWithoutExtension($RepoUrl)
     $dest = Join-Path $Target $name
 
     if (Test-Path (Join-Path $dest ".git")) {
-        Write-Ok "El clon ya existe: $dest"
+        Write-Ok "Clone already exists: $dest"
         if (-not $NoPull) {
             Push-Location $dest
             try { & git pull --ff-only } finally { Pop-Location }
         }
     } else {
-        Write-Ok "Clonando $RepoUrl -> $dest"
+        Write-Ok "Cloning $RepoUrl -> $dest"
         & git clone $RepoUrl $dest
         if ($LASTEXITCODE -ne 0) { Fail "git clone fallo." }
     }
@@ -223,43 +221,42 @@ function Resolve-Repository {
 }
 
 # -----------------------------------------------------------------------------
-# Paso 3 - Analisis y elaboracion
+# Step 3 - Analysis and elaboration
 # -----------------------------------------------------------------------------
-# Las herramientas de XSim escriben su propio log (xvlog.log, xelab.log,
-# xsim.log) en el directorio de trabajo. Aprovechamos eso en vez de redirigir
-# con 2>&1: en PowerShell, el stderr de un ejecutable nativo redirigido asi se
-# convierte en ErrorRecord y, con ErrorActionPreference=Stop, aborta el script
-# aunque la herramienta haya terminado bien.
+# The XSim tools write their own logs (xvlog.log, xelab.log, xsim.log) into the
+# working directory. We use those instead of redirecting with 2>&1: in
+# PowerShell, a native executable's stderr redirected that way becomes an
+# ErrorRecord and, with ErrorActionPreference=Stop, aborts the script even when
+# the tool finished fine.
 
 function Invoke-Compile {
     param([string]$RepoRoot, [string]$RunDir)
 
     $fileList = Join-Path $RepoRoot "src\tb\files.f"
-    if (-not (Test-Path $fileList)) { Fail "No existe $fileList" }
+    if (-not (Test-Path $fileList)) { Fail "$fileList does not exist" }
 
-    # xvlog resuelve las rutas del filelist relativas al CWD, no al .f - por eso
-    # hay que pararse siempre en el mismo lugar (build\uvm), igual que en
-    # run_uvm.sh.
+    # xvlog resolves filelist paths relative to the CWD, not to the .f file, so
+    # we always stand in the same place (build\uvm), same as run_uvm.sh.
     Push-Location $RunDir
     try {
         Write-Step "xvlog - analizando fuentes"
         & xvlog -sv -L uvm -f $fileList
-        if ($LASTEXITCODE -ne 0) { Fail "xvlog fallo. Ver $RunDir\xvlog.log" }
-        Write-Ok "Analisis OK"
+        if ($LASTEXITCODE -ne 0) { Fail "xvlog failed. See $RunDir\xvlog.log" }
+        Write-Ok "Analysis OK"
 
         Write-Step "xelab - elaborando $TopModule"
-        # -relax hace a XSim menos estricto con construcciones que usa UVM 1.2.
+        # -relax makes XSim less strict about constructs UVM 1.2 relies on.
         & xelab -L uvm -timescale 1ns/1ps -relax -s $Snapshot $TopModule
-        if ($LASTEXITCODE -ne 0) { Fail "xelab fallo. Ver $RunDir\xelab.log" }
-        Write-Ok "Elaboracion OK"
+        if ($LASTEXITCODE -ne 0) { Fail "xelab failed. See $RunDir\xelab.log" }
+        Write-Ok "Elaboration OK"
     } finally { Pop-Location }
 }
 
 # -----------------------------------------------------------------------------
-# Paso 4 - Simulacion
+# Step 4 - Simulation
 # -----------------------------------------------------------------------------
-# xsim devuelve 0 aunque UVM reporte errores, asi que el veredicto sale de
-# parsear el reporte final de UVM:
+# xsim exits 0 even when UVM reports errors, so the verdict comes from parsing
+# UVM's final report:
 #
 #     UVM_ERROR :    0
 #     UVM_FATAL :    0
@@ -297,7 +294,7 @@ function Invoke-Test {
             -testplusarg "UVM_TESTNAME=$TestName" `
             -testplusarg "UVM_VERBOSITY=$Verbosity"
 
-        # xsim reescribe xsim.log en cada corrida: lo preservamos por test.
+        # xsim rewrites xsim.log on every run, so keep a copy per test.
         $testLog = "$TestName.log"
         if (Test-Path "xsim.log") {
             Copy-Item -Path "xsim.log" -Destination $testLog -Force
@@ -307,7 +304,7 @@ function Invoke-Test {
         $fatals = Get-UvmCount -LogPath $testLog -Severity "UVM_FATAL"
 
         if ($null -eq $errors -or $null -eq $fatals) {
-            Write-Err "No aparecio el reporte final de UVM - la simulacion aborto."
+            Write-Err "No UVM final report found - the simulation aborted."
             return [pscustomobject]@{
                 Test = $TestName; Errors = -1; Fatals = -1; Passed = $false
             }
@@ -327,7 +324,7 @@ function Invoke-Test {
 }
 
 # -----------------------------------------------------------------------------
-# Paso 5 - Exportar artefactos
+# Step 5 - Export artifacts
 # -----------------------------------------------------------------------------
 
 function Export-Artifacts {
@@ -345,17 +342,17 @@ function Export-Artifacts {
         $waveDir = Join-Path $exportDir "waveforms"
         New-Item -ItemType Directory -Force -Path $waveDir | Out-Null
         $waves | Copy-Item -Destination $waveDir -Force
-        Write-Ok "Waveforms exportadas: $($waves.Count)"
+        Write-Ok "Waveforms exported: $($waves.Count)"
     }
 
     $covSrc = Join-Path $RunDir "xsim.covdb"
     if (Test-Path $covSrc) {
         Copy-Item -Path $covSrc -Destination (Join-Path $exportDir "coverage") -Recurse -Force
-        Write-Ok "Cobertura exportada"
+        Write-Ok "Coverage exported"
     }
 
-    $commit = "desconocido"
-    $branch = "desconocida"
+    $commit = "unknown"
+    $branch = "unknown"
     Push-Location $RepoRoot
     try {
         $c = & git rev-parse --short HEAD 2>$null
@@ -365,17 +362,17 @@ function Export-Artifacts {
     } catch { } finally { Pop-Location }
 
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.AppendLine("Testbench UVM - RAM AXI4-Full")
+    [void]$sb.AppendLine("UVM testbench - AXI4-Full RAM")
     [void]$sb.AppendLine("=============================")
     [void]$sb.AppendLine("")
-    [void]$sb.AppendLine("Fecha     : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
+    [void]$sb.AppendLine("Date      : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
     [void]$sb.AppendLine("Host      : $env:COMPUTERNAME")
-    [void]$sb.AppendLine("Rama      : $branch")
+    [void]$sb.AppendLine("Branch    : $branch")
     [void]$sb.AppendLine("Commit    : $commit")
-    [void]$sb.AppendLine("Simulador : Vivado XSim (UVM 1.2)")
+    [void]$sb.AppendLine("Simulator : Vivado XSim (UVM 1.2)")
     [void]$sb.AppendLine("")
-    [void]$sb.AppendLine("Resultados")
-    [void]$sb.AppendLine("----------")
+    [void]$sb.AppendLine("Results")
+    [void]$sb.AppendLine("-------")
 
     foreach ($r in $Results) {
         $verdict = "FAIL"
@@ -386,7 +383,7 @@ function Export-Artifacts {
 
     $failed = @($Results | Where-Object { -not $_.Passed }).Count
     [void]$sb.AppendLine("")
-    [void]$sb.AppendLine("Total: $($Results.Count) tests, $failed fallidos")
+    [void]$sb.AppendLine("Total: $($Results.Count) tests, $failed failed")
 
     [System.IO.File]::WriteAllText((Join-Path $exportDir "summary.txt"), $sb.ToString())
 
@@ -399,13 +396,13 @@ function Export-Artifacts {
 
 Write-Host ""
 Write-Host "======================================================"
-Write-Host "  Testbench UVM - RAM AXI4-Full - Vivado 2019.2"
+Write-Host "  UVM testbench - AXI4-Full RAM - Vivado 2019.2"
 Write-Host "======================================================"
 
-Write-Step "Cargando entorno de Vivado"
+Write-Step "Loading Vivado environment"
 Import-VivadoEnvironment -Root $VivadoPath
 
-Write-Step "Preparando repositorio"
+Write-Step "Preparing repository"
 $repoRoot = Resolve-Repository -RepoUrl $Repo -Target $WorkDir
 
 $runDir = Join-Path $repoRoot "build\uvm"
@@ -417,7 +414,7 @@ $testsToRun = $AllTests
 if ($Test) { $testsToRun = @($Test) }
 
 if ($Gui -and $testsToRun.Count -gt 1) {
-    Fail "-Gui necesita un solo test. Usa -Test <nombre>."
+    Fail "-Gui needs a single test. Use -Test <name>."
 }
 
 $results = @()
@@ -427,7 +424,7 @@ foreach ($t in $testsToRun) {
 
 if ($Gui) { exit 0 }
 
-Write-Step "Exportando artefactos"
+Write-Step "Exporting artifacts"
 $stamp     = Get-Date -Format "yyyyMMdd-HHmmss"
 $exportDir = Export-Artifacts -RepoRoot $repoRoot -RunDir $runDir `
                               -Results $results -Stamp $stamp
@@ -440,14 +437,14 @@ foreach ($r in $results) {
     Write-Host ("  {0,-14} {1}" -f $r.Test, $verdict) -ForegroundColor $color
 }
 Write-Host "------------------------------------------------------"
-Write-Host "  Exportado en: $exportDir"
+Write-Host "  Exported to: $exportDir"
 Write-Host ""
 
 $failedCount = @($results | Where-Object { -not $_.Passed }).Count
 if ($failedCount -gt 0) {
-    Write-Err "$failedCount test(s) fallaron."
+    Write-Err "$failedCount test(s) failed."
     exit 1
 }
 
-Write-Ok "Todos los tests pasaron."
+Write-Ok "All tests passed."
 exit 0

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
-# check_deliverables.sh — verifica que exista cada entregable que pide
-# docs/Enunciado.md (Evaluación 4).
+# check_deliverables.sh — verifies that every deliverable docs/Enunciado.md
+# asks for exists.
 #
-# No juzga si el contenido es correcto, sólo que el artefacto esté y no esté
-# vacío. Sirve para no descubrir la víspera de la entrega que falta algo.
+# It does not judge whether the content is correct, only that the artifact is
+# there and not empty. The point is not to discover something missing the night
+# before submission.
 #
-# Uso:  ./scripts/check_deliverables.sh
+# Usage:  ./scripts/check_deliverables.sh
 
 set -uo pipefail
 
@@ -16,7 +17,7 @@ cd "${ROOT}"
 FAILED=0
 CHECKED=0
 
-# Un entregable satisfecho por un archivo concreto.
+# A deliverable satisfied by one specific file.
 need_file() {
     local path="$1" what="$2"
     CHECKED=$((CHECKED + 1))
@@ -28,7 +29,7 @@ need_file() {
     fi
 }
 
-# Un entregable satisfecho por al menos un archivo que matchee un glob.
+# A deliverable satisfied by at least one file matching a glob.
 need_glob() {
     local pattern="$1" what="$2"
     CHECKED=$((CHECKED + 1))
@@ -41,7 +42,7 @@ need_glob() {
     fi
 }
 
-# Una sección que el enunciado exige en el README.
+# A section the assignment requires in the README.
 need_section() {
     local heading="$1"
     CHECKED=$((CHECKED + 1))
@@ -53,33 +54,33 @@ need_section() {
     fi
 }
 
-echo "Entregables — docs/Enunciado.md (Evaluación 4)"
-echo "=============================================="
+echo "Deliverables — docs/Enunciado.md"
+echo "================================"
 echo
-echo "Código fuente en Verilog y SystemVerilog (implementación + testbench):"
-need_file  "src/rtl/axi4_ram.v"          "RAM con puerto AXI4-Full"
-need_file  "src/dpi/axi_ram_dpi.sv"      "wrapper DPI + AXI master BFM"
-need_glob  "src/tb/uvm/*.sv"             "testbench UVM"
+echo "Verilog and SystemVerilog sources (implementation + testbench):"
+need_file  "src/rtl/axi4_ram.v"          "RAM with an AXI4-Full port"
+need_file  "src/dpi/axi_ram_dpi.sv"      "DPI wrapper + AXI master BFM"
+need_glob  "src/tb/uvm/*.sv"             "UVM testbench"
 
 echo
-echo "Código fuente en SystemC del acelerador y sus auxiliares:"
+echo "SystemC sources for the accelerator and its helpers:"
 need_file  "src/model/modules/accelerator/accelerator.cpp" "Accelerator"
-need_file  "src/model/modules/ram_axi/ram_axi.cpp"         "puente TLM ↔ DPI"
-need_file  "src/model/sc_main.cpp"                         "top del modelo"
+need_file  "src/model/modules/ram_axi/ram_axi.cpp"         "TLM to DPI bridge"
+need_file  "src/model/sc_main.cpp"                         "model top level"
 
 echo
 echo "Scripts:"
-need_file  "scripts/run_uvm.sh"          "correr la simulación SystemVerilog"
-need_file  "scripts/build_rtl.sh"        "construir modelo + DPI + RTL"
-need_file  "Makefile"                    "entrada unificada del build"
+need_file  "scripts/run_uvm.sh"          "run the SystemVerilog simulation"
+need_file  "scripts/build_rtl.sh"        "build model + DPI + RTL"
+need_file  "Makefile"                    "unified build entry point"
 
 echo
-echo "Imágenes:"
-need_file  "images/input/image.raw"      "entrada RAW RGB"
-need_file  "images/output/output.raw"    "salida generada por el sistema"
+echo "Images:"
+need_file  "images/input/image.raw"      "RAW RGB input"
+need_file  "images/output/output.raw"    "output produced by the system"
 
 echo
-echo "README — secciones que exige el enunciado:"
+echo "README — sections the assignment requires:"
 need_section "Requirements & Build Instructions"
 need_section "Repository Organization"
 need_section "Module Organization"
@@ -88,22 +89,22 @@ need_section "Sequence Diagram"
 need_section "Results"
 
 echo
-echo "Declaración de uso de IA:"
+echo "AI usage declaration:"
 CHECKED=$((CHECKED + 1))
 if grep -qE '^\| *Claude' README.md; then
-    printf '  ok    README: tabla AI-Assisted Development con filas\n'
+    printf '  ok    README: AI-Assisted Development table has rows\n'
 else
-    printf '  MISS  README: la tabla AI-Assisted Development está vacía\n'
-    printf '        Su omisión se trata como plagio según el enunciado.\n'
+    printf '  MISS  README: the AI-Assisted Development table is empty\n'
+    printf '        Omitting it counts as plagiarism per the assignment.\n'
     FAILED=$((FAILED + 1))
 fi
 
 echo
 echo "----------------------------------------------"
 if [[ ${FAILED} -eq 0 ]]; then
-    echo "Todos los entregables presentes (${CHECKED} verificados)."
+    echo "All deliverables present (${CHECKED} checked)."
     exit 0
 fi
 
-echo "Faltan ${FAILED} de ${CHECKED} entregables."
+echo "${FAILED} of ${CHECKED} deliverables missing."
 exit 1

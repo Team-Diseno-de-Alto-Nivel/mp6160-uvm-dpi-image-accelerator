@@ -23,9 +23,9 @@ TIME_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(ns|us|ms|s)\b")
 def parse_final_sim_time(log_text: str) -> str:
     times = TIME_RE.findall(log_text)
     if not times:
-        # Un log sin ningún timestamp significa que la simulación no corrió
-        # (típicamente porque el build falló antes). Escribir "unknown" en el
-        # README esconde el problema: mejor fallar acá.
+        # A log with no timestamp at all means the simulation never ran,
+        # typically because the build failed first. Writing "unknown" into the
+        # README hides that, so fail here instead.
         raise SystemExit(
             "error: no SystemC timestamp found in the simulation log.\n"
             "       The simulation almost certainly never ran — check the build\n"
@@ -106,11 +106,11 @@ def humanise_time(value: str) -> str:
 
 
 def backend_table(cpp_time: str, rtl_time: str | None) -> str:
-    """Comparativa de los dos backends de RAM.
+    """Comparison of the two RAM backends.
 
-    El backend RTL puede no haber corrido todavía: mientras `src/rtl/axi4_ram.v`
-    no tenga lógica, la corrida se cuelga y el guard de RamAxi la corta. En ese
-    caso se publica el estado real en vez de inventar un número.
+    The RTL backend may not have run: if `src/rtl/axi4_ram.v` has no logic the
+    run stalls and RamAxi's guard aborts it. In that case report the real state
+    rather than inventing a figure.
     """
     lines = [
         "| RAM backend | How | Simulated time at stop | Status |",
