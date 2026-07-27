@@ -124,18 +124,41 @@ module axi_ram_dpi #(
 
     state_t state;
 
-    function automatic void build_write_beat();
+    // Un carril del beat participa si su byte cae dentro de la petición. Los
+    // extremos no alineados quedan cubiertos por WSTRB.
+    function automatic bit lane_in_range(input int lane);
         longint byte_addr;
         begin
-            wdata = '0;
-            wstrb = '0;
+            byte_addr = beat_base + longint'(lane);
+            return (byte_addr >= next_byte && byte_addr <= end_byte);
+        end
+    endfunction
+
+    // Estas dos devuelven valores en vez de escribir wdata/wstrb directamente:
+    // así el always_ff asigna sólo con `<=` y no se mezcla bloqueante con no
+    // bloqueante sobre señales secuenciales (Verilator lo reporta como BLKSEQ).
+    function automatic logic [DATA_WIDTH-1:0] write_beat_data();
+        logic [DATA_WIDTH-1:0] d;
+        longint                byte_addr;
+        begin
+            d = '0;
             for (int lane = 0; lane < BYTES_PER_BEAT; lane++) begin
-                byte_addr = beat_base + longint'(lane);
-                if (byte_addr >= next_byte && byte_addr <= end_byte) begin
-                    wdata[lane*8 +: 8] = axi_dpi_get_wbyte(int'(byte_addr - req_addr));
-                    wstrb[lane]        = 1'b1;
+                if (lane_in_range(lane)) begin
+                    byte_addr          = beat_base + longint'(lane);
+                    d[lane*8 +: 8]     = axi_dpi_get_wbyte(int'(byte_addr - req_addr));
                 end
             end
+            return d;
+        end
+    endfunction
+
+    function automatic logic [BYTES_PER_BEAT-1:0] write_beat_strb();
+        logic [BYTES_PER_BEAT-1:0] s;
+        begin
+            s = '0;
+            for (int lane = 0; lane < BYTES_PER_BEAT; lane++)
+                s[lane] = lane_in_range(lane);
+            return s;
         end
     endfunction
 
@@ -143,9 +166,10 @@ module axi_ram_dpi #(
         longint byte_addr;
         begin
             for (int lane = 0; lane < BYTES_PER_BEAT; lane++) begin
-                byte_addr = beat_base + longint'(lane);
-                if (byte_addr >= next_byte && byte_addr <= end_byte)
+                if (lane_in_range(lane)) begin
+                    byte_addr = beat_base + longint'(lane);
                     axi_dpi_put_rbyte(int'(byte_addr - req_addr), data[lane*8 +: 8]);
+                end
             end
         end
     endfunction
@@ -202,10 +226,11 @@ module axi_ram_dpi #(
                         awvalid    <= 1'b1;
                     end else if (awready) begin
                         awvalid <= 1'b0;
-                        build_write_beat();
-                        wlast  <= (beats_left == 1);
-                        wvalid <= 1'b1;
-                        state  <= S_WR_DATA;
+                        wdata   <= write_beat_data();
+                        wstrb   <= write_beat_strb();
+                        wlast   <= (beats_left == 1);
+                        wvalid  <= 1'b1;
+                        state   <= S_WR_DATA;
                     end
                 end
 
@@ -222,16 +247,17 @@ module axi_ram_dpi #(
                         end else begin
                             beats_left <= beats_left - 1;
                             wlast      <= (beats_left == 2);
-                            // build_write_beat() usa next_byte/beat_base, que
-                            // son NBA y todavía no se actualizaron: se llama en
-                            // el ciclo siguiente vía S_WR_DATA_NEXT.
+                            // write_beat_data/strb leen next_byte y beat_base,
+                            // que son NBA y todavía no se actualizaron: el beat
+                            // siguiente se arma un ciclo después.
                             state      <= S_WR_DATA_NEXT;
                         end
                     end
                 end
 
                 S_WR_DATA_NEXT: begin
-                    build_write_beat();
+                    wdata  <= write_beat_data();
+                    wstrb  <= write_beat_strb();
                     wvalid <= 1'b1;
                     state  <= S_WR_DATA;
                 end

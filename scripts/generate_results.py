@@ -23,7 +23,14 @@ TIME_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(ns|us|ms|s)\b")
 def parse_final_sim_time(log_text: str) -> str:
     times = TIME_RE.findall(log_text)
     if not times:
-        return "unknown"
+        # Un log sin ningún timestamp significa que la simulación no corrió
+        # (típicamente porque el build falló antes). Escribir "unknown" en el
+        # README esconde el problema: mejor fallar acá.
+        raise SystemExit(
+            "error: no SystemC timestamp found in the simulation log.\n"
+            "       The simulation almost certainly never ran — check the build\n"
+            "       output above instead of trusting this step."
+        )
     value, unit = times[-1]
     return f"{value} {unit}"
 

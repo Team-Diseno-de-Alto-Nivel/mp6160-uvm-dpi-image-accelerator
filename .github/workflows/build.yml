@@ -84,6 +84,11 @@ jobs:
 
       - name: Build and run simulation
         run: |
+          # pipefail es imprescindible: sin él el exit code del pipe es el de
+          # `tee` (siempre 0), así que un build roto pasaba como success y
+          # generate_results.py escribía "unknown" en el README sin que nadie
+          # se enterara.
+          set -o pipefail
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
