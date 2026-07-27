@@ -426,7 +426,7 @@ Together these cover the assignment's full flow. The remaining requirement — t
 
 ### Simulated vs. wall-clock time
 
-`sc_time_stamp()` reports <!-- RESULTS:SIMTIME:START -->**100 ns**<!-- RESULTS:SIMTIME:END --> at stop, which does not reflect real execution time (the real run takes milliseconds to a few seconds, depending on host CPU speed). Reason: every `b_transport` call annotates a local delay (CPU 10 ns, Bus 5 ns, RAM 10 ns, Disk 100 ns), but those annotations are never consumed with `wait()` — they're computed and discarded. The only call that actually advances simulated time is the single `wait(100 ns)` inside `CPU::wait_accelerator_ready()`'s polling loop. This is a loosely-timed TLM model: functionally accurate (data moves correctly and in order) but not timing-accurate.
+`sc_time_stamp()` reports <!-- RESULTS:SIMTIME:START -->**unknown**<!-- RESULTS:SIMTIME:END --> at stop, which does not reflect real execution time (the real run takes milliseconds to a few seconds, depending on host CPU speed). Reason: every `b_transport` call annotates a local delay (CPU 10 ns, Bus 5 ns, RAM 10 ns, Disk 100 ns), but those annotations are never consumed with `wait()` — they're computed and discarded. The only call that actually advances simulated time is the single `wait(100 ns)` inside `CPU::wait_accelerator_ready()`'s polling loop. This is a loosely-timed TLM model: functionally accurate (data moves correctly and in order) but not timing-accurate.
 
 ---
 
