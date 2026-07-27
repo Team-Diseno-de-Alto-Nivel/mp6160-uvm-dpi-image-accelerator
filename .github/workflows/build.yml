@@ -104,6 +104,26 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # scripts/build_rtl.sh is a graded deliverable — the assignment asks for a
+      # script that builds the model together with DPI and the RTL. Nothing else
+      # in the pipeline invokes it: CMake runs verilate() itself as part of the
+      # sim target, and run-rtl deliberately does not depend on this script.
+      #
+      # Exercise it here anyway. A deliverable nobody runs rots silently, and
+      # this one already shipped a bug (expanding an empty array under `set -u`
+      # breaks on bash 3.2) that only surfaced when it was invoked by hand.
+      #
+      # Runs inside the container: that is where Verilator 5 lives, and the path
+      # is /workspace, with no spaces — the script refuses to run from a path
+      # containing them.
+      - name: Build the RTL with the standalone script
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            systemc-tlm:ci \
+            ./scripts/build_rtl.sh
+
       - name: Run C++ backend (golden reference)
         run: |
           # pipefail is essential: without it the pipe's exit code is tee's,
