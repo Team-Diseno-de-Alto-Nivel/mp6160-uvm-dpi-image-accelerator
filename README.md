@@ -113,7 +113,10 @@ Every pull request triggers a GitHub Actions workflow ([build.yml](.github/workf
 │       └── build.yml              # CI: compiles, runs, and commits live results/images on every pull request
 ├── docs/
 │   ├── CrearModuloSystemC.md      # Step-by-step guide for implementing a new module
-│   └── Enunciado.md               # Assignment specification (Spanish)
+│   ├── ArquitecturaDPI.md         # RTL port map + DPI bridge design (Spanish)
+│   ├── PlanUVM.md                 # Verification plan: features, tests, coverage
+│   ├── Enunciado.md               # Assignment specification (Spanish)
+│   └── old/Enunciado.md           # Previous assignment (Evaluación 2), for reference
 ├── images/
 │   ├── input/                     # Input RAW RGB images (place here before running)
 │   └── output/                    # Grayscale output images (written here by sim)
@@ -121,32 +124,38 @@ Every pull request triggers a GitHub Actions workflow ([build.yml](.github/workf
 │   ├── prepare_input.py           # Converts/generates images/input/image.raw for the sim
 │   ├── raw_to_jpg.py              # Converts a headerless RAW file back to JPG/PNG for viewing
 │   ├── jpg_to_raw.py              # Converts a JPG/PNG into headerless RAW for the sim
-│   └── generate_results.py        # Extracts sim time, byte counts, and BT.601 pixel checks for CI
-├── src/
-│   ├── modules/
-│   │   ├── accelerator/
-│   │   │   ├── accelerator.h
-│   │   │   └── accelerator.cpp
-│   │   ├── bus/
-│   │   │   ├── bus.h
-│   │   │   └── bus.cpp
-│   │   ├── cpu/
-│   │   │   ├── cpu.h
-│   │   │   └── cpu.cpp
-│   │   ├── disk/
-│   │   │   ├── disk.h
-│   │   │   └── disk.cpp
-│   │   └── ram/
-│   │       ├── ram.h
-│   │       └── ram.cpp
-│   ├── config/
-│   │   ├── memory_map.h           # Bus address map constants
-│   │   └── image_config.h         # Image dimension constants
-│   ├── utils/
-│   │   └── conversion.h           # Pure BT.601 helper (no SystemC dependency)
-│   ├── infra/
-│   │   └── logger.h               # Centralized console logging
-│   └── sc_main.cpp                # sc_main — top-level instantiation and sc_start()
+│   ├── generate_results.py        # Extracts sim time, byte counts, and BT.601 pixel checks for CI
+│   ├── build_rtl.sh               # Verilates the RTL + DPI bridge (standalone, no CMake)
+│   ├── run_uvm.sh                 # Runs the UVM testbench in Vivado XSim (Linux/macOS)
+│   ├── run_uvm_windows.ps1        # Same flow on Windows: env setup → clone → sim → exports/
+│   └── run_uvm_windows.bat        # Launcher for the PowerShell script
+├── src/                           # All source, grouped by subsystem
+│   ├── model/                     # SystemC / TLM 2.0 model
+│   │   ├── modules/
+│   │   │   ├── accelerator/       # accelerator.h / .cpp
+│   │   │   ├── bus/               # bus.h / .cpp
+│   │   │   ├── cpu/               # cpu.h / .cpp
+│   │   │   ├── disk/              # disk.h / .cpp
+│   │   │   ├── ram/               # ram.h / .cpp — C++ reference RAM
+│   │   │   └── ram_axi/           # TLM ↔ DPI bridge to the Verilog RAM
+│   │   ├── config/
+│   │   │   ├── memory_map.h       # Bus address map constants
+│   │   │   └── image_config.h     # Image dimension constants
+│   │   ├── utils/
+│   │   │   └── conversion.h       # Pure BT.601 helper (no SystemC dependency)
+│   │   ├── infra/
+│   │   │   └── logger.h           # Centralized console logging
+│   │   └── sc_main.cpp            # sc_main — top-level instantiation and sc_start()
+│   ├── rtl/
+│   │   └── axi4_ram.v             # 64 MB RAM with an AXI4-Full slave port (Verilog-2001)
+│   ├── tb/
+│   │   ├── uvm/                   # UVM testbench for axi4_ram (agent, scoreboard, sequences)
+│   │   └── files.f                # Filelist consumed by xvlog
+│   └── dpi/
+│       ├── axi_ram_dpi.svh        # DPI contract — SystemVerilog side (frozen)
+│       ├── axi_ram_dpi.h          # DPI contract — C++ side (frozen)
+│       ├── axi_ram_dpi.sv         # AXI master BFM + axi4_ram instance
+│       └── axi_ram_dpi.cpp        # Verilated model owner + clock ticking
 ├── AGENTS.md                      # AI assistant instructions
 ├── CMakeLists.txt                 # Build system; auto-fetches SystemC if needed
 ├── CLAUDE.md                      # Context file for Claude Code
@@ -421,3 +430,4 @@ Declared as required by course policy — see [docs/Enunciado.md](docs/Enunciado
 | Claude Sonnet 4.6 ([Claude Code](https://claude.ai/code)) | Documentation generation, code generation | *"Create docs/CrearModuloSystemC.md: a step-by-step guide for implementing a SystemC/TLM module in this project, using the Accelerator as a reference example. Covers header, cpp, conversion.h, CMakeLists, main.cpp wiring, memory map, and config format documentation."* |
 | Claude Sonnet 4.6 ([Claude Code](https://claude.ai/code)) | code generation, concept lookup | *"Create a Claude Code skill following Anthropic's official skill guide to automate AI usage logging (/log-ai), placed at .claude/skills/log-ai/SKILL.md, with context inference so it derives model, type of use, and prompt from the conversation automatically."* |
 | Claude Sonnet 4.6 ([Claude Code](https://claude.ai/code)) | debugging, code generation, code review, documentation generation | *"Audit the project against the assignment spec, fix the gaps found (a RAM logging performance bug, missing RAW image deliverables, repo restructuring into modules/config/infra/utils), automate publishing simulation results in CI, file an issue for a discovered TLM routing bug, and bring the README's diagrams and Results/Discussion sections in line with the actual code and real simulation data."* |
+| Claude Opus 5 ([Claude Code](https://claude.ai/code)) | concept lookup, code generation, documentation generation | *"Read the new assignment (Evaluación 4) and turn the forked Evaluación 2 SystemC/TLM project into the template we start from: choose the toolchain (Vivado XSim for the UVM testbench, Verilator for the SystemC co-simulation) and justify the trade-offs, restructure the repo under src/ by subsystem (model, rtl, tb, dpi) following our sibling repo's convention, and scaffold each layer — frozen AXI4-Full port map, frozen DPI-C contract, build and simulation scripts, CI lint job, and the architecture and verification-plan docs — without implementing the graded deliverables themselves."* |

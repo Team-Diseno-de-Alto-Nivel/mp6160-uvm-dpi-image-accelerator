@@ -20,6 +20,22 @@ _deps/
 !images/input/*.raw
 !images/output/*.raw
 
+# Artefactos exportados por scripts/run_uvm_windows.ps1
+exports/
+
+# Verilator
+obj_dir/
+
+# Vivado / XSim
+xsim.dir/
+*.jou
+*.log
+*.wdb
+*.pb
+*.str
+webtalk*
+.Xil/
+
 # macOS
 .DS_Store
 .AppleDouble

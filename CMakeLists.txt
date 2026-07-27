@@ -32,12 +32,12 @@ endif()
 
 # ── Main simulation executable ────────────────────────────────────────────────
 add_executable(sim
-    src/sc_main.cpp
-    src/modules/cpu/cpu.cpp
-    src/modules/bus/bus.cpp
-    src/modules/ram/ram.cpp
-    src/modules/disk/disk.cpp
-    src/modules/accelerator/accelerator.cpp
+    src/model/sc_main.cpp
+    src/model/modules/cpu/cpu.cpp
+    src/model/modules/bus/bus.cpp
+    src/model/modules/ram/ram.cpp
+    src/model/modules/disk/disk.cpp
+    src/model/modules/accelerator/accelerator.cpp
 )
-target_include_directories(sim PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(sim PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/model)
 target_link_libraries(sim ${SYSTEMC_LIB})

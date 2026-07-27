@@ -27,6 +27,26 @@ jobs:
               - '.github/workflows/**'
               - 'images/input/**'
 
+  # Lint del RTL. Rápido y sin Docker: instala Verilator desde apt sólo para
+  # revisar sintaxis y estilo, no para simular.
+  #
+  # Es bloqueante a propósito: hoy pasa limpio (el stub al final de axi4_ram.v
+  # se encarga de eso) y debe seguir pasando limpio cuando el módulo esté
+  # implementado de verdad.
+  lint:
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Verilator
+        run: sudo apt-get update && sudo apt-get install -y verilator
+
+      - name: Lint RTL
+        run: verilator --lint-only -Wall src/rtl/axi4_ram.v
+
   build:
     needs: changes
     if: needs.changes.outputs.src == 'true'
