@@ -118,7 +118,60 @@ RamAxi::b_transport()
   └─ payload.set_response_status(axi_dpi_resp() == OKAY ? TLM_OK : TLM_GENERIC_ERROR)
 ```
 
-> **TODO(integrante 3)** — Documentar la máquina de estados del BFM: cómo parte una petición de más de 256 beats en ráfagas sucesivas, cómo maneja el cruce de límites de 4 KB (AXI lo prohíbe), y qué período de reloj se eligió.
+### La máquina de estados del BFM
+
+`axi_ram_dpi.sv` implementa el master con una FSM de siete estados:
+
+```
+S_IDLE ──► S_WR_ADDR ──► S_WR_DATA ⇄ S_WR_DATA_NEXT ──► S_WR_RESP ──┐
+   │                                                                 │
+   │                          (si quedan bytes, vuelve a S_WR_ADDR)  │
+   ◄─────────────────────────────────────────────────────────────────┘
+   │
+   └────► S_RD_ADDR ──► S_RD_DATA ──► (siguiente ráfaga o S_IDLE)
+```
+
+**Partición en ráfagas.** `beats_for_burst()` calcula cuántos beats caben desde la posición actual respetando tres cotas a la vez: el final de la petición, el **límite de 4 KB** (AXI prohíbe que una ráfaga lo cruce) y el máximo de **256 beats** de AXI4. Cuando la petición no cabe en una ráfaga, la FSM vuelve a `S_WR_ADDR` / `S_RD_ADDR` y emite la siguiente.
+
+**Beats de ancho completo.** Todos los beats usan `AWSIZE = log2(DATA_WIDTH/8)`; la cobertura parcial en los extremos de una petición no alineada se resuelve activando `WSTRB` sólo en los carriles cuyo byte cae dentro del rango. Es más simple que emitir beats angostos y ejercita el camino de byte-enables del DUT.
+
+**Por qué existe `S_WR_DATA_NEXT`.** `build_write_beat()` lee `next_byte` y `beat_base`, que se actualizan con asignación no bloqueante. Dentro del mismo ciclo todavía tienen el valor viejo, así que armar el beat siguiente requiere un ciclo extra. Cuesta un ciclo por beat y evita un bug silencioso de datos corridos.
+
+**Período de reloj:** 10 ns (`HALF_PERIOD = 5 ns` en `ram_axi.cpp`).
+
+---
+
+## Gotchas encontrados durante la implementación
+
+Tres cosas que costaron tiempo y no son evidentes:
+
+### 1. `svSetScope` es obligatorio
+
+Llamar una función DPI **exportada** desde C++ sin fijar antes el scope de SystemVerilog aborta con:
+
+```
+%Error: Testbench C called 'axi_dpi_req' but scope wasn't set
+```
+
+Verilator registra el scope como `"<nombre del modelo>.<nombre del módulo>"`, donde el nombre del modelo es `TOP` por defecto — o sea `"TOP.axi_ram_dpi"`. `axi_dpi::init()` lo compone en runtime desde `g_top->name()` para no depender de ese default.
+
+### 2. Ninguna palabra `verilator` al inicio de un comentario
+
+En un archivo de RTL, `// verilator <algo>` como **primer token** después de `//` se interpreta como metacomentario, es decir una directiva. Si no la reconoce, el parseo aborta. Pasa también con mayúscula inicial.
+
+### 3. Verilator no construye en rutas con espacios
+
+El `verilated.mk` es un Makefile de GNU Make, que no soporta espacios en las rutas. El `verilate()` de CMake tampoco: su parser JSON se rompe, y los caracteres acentuados descompuestos lo empeoran.
+
+`scripts/build_rtl.sh` lo detecta y avisa. Para trabajar localmente hay que clonar en una ruta sin espacios, o usar el devcontainer, que monta en `/workspace`. En CI no aparece: el runner usa `/home/runner/work/...`.
+
+---
+
+## Partición de transferencias grandes
+
+El buffer de intercambio del puente está acotado a `AXI_DPI_MAX_BYTES` (1 MB), pero el CPU transfiere la imagen completa de un tiro: 6 220 800 B al cargar y 2 073 600 B al guardar.
+
+`RamAxi::b_transport` parte el payload en chunks de hasta 1 MB y emite una petición DPI por chunk. La partición vive en la capa SystemC **a propósito**: así el tamaño del buffer no queda atado al de la imagen, y el contrato DPI no cambia si mañana se procesa 4K.
 
 ---
 
@@ -141,7 +194,9 @@ public:
 
 El Bus no traduce direcciones — reenvía el payload sin tocarlo (ver [`bus.cpp`](../src/model/modules/bus/bus.cpp)). Como `RAM_BASE` es `0x0`, la dirección absoluta coincide con el offset dentro de la RAM, así que se puede pasar tal cual al RTL.
 
-> **TODO(integrante 3)** — Completar con el código real una vez implementado, siguiendo el formato de [CrearModuloSystemC.md](CrearModuloSystemC.md).
+Implementado en `ram_axi.cpp`. `b_transport` parte el payload en chunks, encola cada uno con `axi_dpi_req()`, avanza el reloj del RTL con `axi_dpi::tick()` intercalando `wait(HALF_PERIOD)`, y traduce `axi_dpi_resp()` al `tlm_response_status`.
+
+Incluye una cota de seguridad de 10 000 000 flancos por transacción: si el BFM no termina, reporta `SC_REPORT_ERROR` señalando los handshakes AXI en vez de colgarse para siempre. Es lo que aparece hoy al correr contra el stub de `axi4_ram.v`.
 
 ---
 
@@ -151,7 +206,9 @@ El Bus no traduce direcciones — reenvía el payload sin tocarlo (ver [`bus.cpp
 
 `argc`/`argv` hoy están sin usar. La bandera `--rtl-ram` elige qué módulo se enlaza a `bus.init_socket_ram`; sin ella, el comportamiento es exactamente el de hoy.
 
-> **TODO(integrante 3)** — Documentar aquí cómo quedó la selección.
+`sc_main` parsea `argv` y, según encuentre `--rtl-ram`, instancia `RamAxi` o `RAM` y enlaza `bus.init_socket_ram` al elegido. Sólo se construye el backend en uso.
+
+Si el binario se compiló sin Verilator, `--rtl-ram` falla con un mensaje explícito en vez de ignorarse en silencio; el modo por defecto sigue funcionando igual.
 
 ---
 

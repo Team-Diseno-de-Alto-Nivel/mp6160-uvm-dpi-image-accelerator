@@ -27,12 +27,24 @@ jobs:
               - '.github/workflows/**'
               - 'images/input/**'
 
-  # Lint del RTL. Rápido y sin Docker: instala Verilator desde apt sólo para
-  # revisar sintaxis y estilo, no para simular.
+  # Checks that every deliverable docs/Enunciado.md asks for exists. Cheap and
+  # fast: avoids discovering a missing artifact the night before submission.
+  deliverables:
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required deliverables exist
+        run: ./scripts/check_deliverables.sh
+
+  # Lints the RTL and the DPI wrapper. No Docker: installs Verilator from apt
+  # only to check syntax and style, not to simulate.
   #
-  # Es bloqueante a propósito: hoy pasa limpio (el stub al final de axi4_ram.v
-  # se encarga de eso) y debe seguir pasando limpio cuando el módulo esté
-  # implementado de verdad.
+  # Covers both files on purpose. The runner's apt version differs from the
+  # container's, and that difference already caught a BLKSEQ the local one did
+  # not report — two versions is coverage, not redundancy.
   lint:
     needs: changes
     if: needs.changes.outputs.src == 'true'
@@ -44,8 +56,18 @@ jobs:
       - name: Install Verilator
         run: sudo apt-get update && sudo apt-get install -y verilator
 
+      - name: Report Verilator version
+        run: verilator --version
+
       - name: Lint RTL
         run: verilator --lint-only -Wall src/rtl/axi4_ram.v
+
+      - name: Lint DPI wrapper + RTL
+        run: |
+          verilator --lint-only -Wall \
+            --top-module axi_ram_dpi \
+            +incdir+src/dpi \
+            src/rtl/axi4_ram.v src/dpi/axi_ram_dpi.sv
 
   build:
     needs: changes
@@ -82,19 +104,48 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and run simulation
+      - name: Run C++ backend (golden reference)
         run: |
+          # pipefail is essential: without it the pipe's exit code is tee's,
+          # always 0, so a broken build passed as success and
+          # generate_results.py wrote "unknown" into the README unnoticed.
+          set -o pipefail
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             systemc-tlm:ci \
-            make run | tee sim.log
+            make run | tee sim-cpp.log
+          cp images/output/output.raw /tmp/reference.raw
+
+      - name: Run RTL backend
+        run: |
+          set -o pipefail
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            systemc-tlm:ci \
+            make run-rtl | tee sim-rtl.log
+
+      # The acceptance test for the whole DPI integration: if both backends
+      # produce the same bytes, the Verilog RAM is functionally identical to the
+      # C++ reference over 8,294,400 bytes of real traffic.
+      - name: Compare backends byte for byte
+        run: |
+          if cmp /tmp/reference.raw images/output/output.raw; then
+            echo "RTL RAM is bit-exact against the C++ reference over $(stat -c%s images/output/output.raw) bytes"
+          else
+            echo "::error::RTL and C++ backends disagree — the Verilog RAM is not functionally equivalent"
+            exit 1
+          fi
 
       - name: Convert RAW output → JPG
         run: python scripts/raw_to_jpg.py images/output/output.raw images/output/output.jpg --gray
 
       - name: Update README with live results
-        run: python scripts/generate_results.py sim.log --readme README.md
+        run: |
+          python scripts/generate_results.py sim-cpp.log \
+            --rtl-log sim-rtl.log \
+            --readme README.md
 
       - name: Commit updated results to the PR branch
         run: |
@@ -104,6 +155,21 @@ jobs:
           if git diff --cached --quiet; then
             echo "No result changes to commit"
           else
-            git commit -m "ci: update simulation results"
+            # [skip ci] stops this push from re-triggering the workflow. Without
+            # it every results commit leaves a ghost run: triggered by
+            # github-actions[bot], parked by GitHub in "action_required" waiting
+            # for approval, cluttering the PR checks for nothing — the `changes`
+            # job would skip it anyway because of the actor guard.
+            git commit -m "ci: update simulation results [skip ci]"
             git push origin HEAD:${{ github.head_ref }}
           fi
+
+      - name: Upload simulation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-logs
+          path: |
+            sim-cpp.log
+            sim-rtl.log
+          if-no-files-found: warn

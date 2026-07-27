@@ -43,6 +43,12 @@ All source lives under `src/`, grouped by subsystem (same convention as the sibl
 
 ## Coding conventions
 
+### Language
+
+**All comments and identifiers in source files are in English**, regardless of the language used in issues, commit messages or pull requests. This applies to `src/`, `scripts/`, `CMakeLists.txt` and the workflows. Prose documentation under `docs/` is Spanish; `README.md` and this file are English.
+
+> ⚠️ In `.v` / `.sv` files, no comment line may **start** with the word `verilator`. When it is the first token after `//`, Verilator parses it as a metacomment — a directive — and aborts if the directive does not exist. Capitalised counts too. This has bitten us twice; the `lint` CI job catches it.
+
 ### SystemC (`src/model/`)
 - One `.h` + `.cpp` pair per module under `src/model/modules/<module>/`
 - Shared address/config constants under `src/model/config/`; pure non-SystemC helpers under `src/model/utils/`; cross-cutting infra (logging) under `src/model/infra/`

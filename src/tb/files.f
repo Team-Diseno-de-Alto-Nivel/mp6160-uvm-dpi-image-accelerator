@@ -1,11 +1,11 @@
 // -----------------------------------------------------------------------------
-// files.f — filelist para xvlog (Vivado XSim)
+// files.f — filelist for xvlog (Vivado XSim)
 // -----------------------------------------------------------------------------
-// El ORDEN IMPORTA: xvlog compila secuencialmente y no resuelve dependencias
-// hacia adelante. Las clases UVM se incluyen desde axi4_pkg.sv, no se listan
-// aquí una por una.
+// ORDER MATTERS: xvlog compiles sequentially and does not resolve forward
+// dependencies. The interface has to come before the package that references it,
+// and the package before the top that imports it.
 //
-// Uso:  xvlog -sv -L uvm -f src/tb/files.f
+// Usage:  xvlog -sv -L uvm -f src/tb/files.f
 // -----------------------------------------------------------------------------
 
 -i ../../src/tb/uvm
@@ -13,12 +13,12 @@
 // ── DUT ──────────────────────────────────────────────────────────────────────
 ../../src/rtl/axi4_ram.v
 
-// ── Interface (fuera del package: contiene señales, no puede ir adentro) ─────
+// ── Interface. Outside the package: it holds signals, so it cannot live in one.
 ../../src/tb/uvm/axi4_if.sv
 
-// ── Paquete UVM: hace `include de seq_item, driver, monitor, sequencer,
-//    agent, scoreboard, coverage, env, sequences y tests, en ese orden ────────
+// ── UVM package: sequence item, driver, monitor, agent, scoreboard, coverage,
+//    environment, sequences and tests, all in one file.
 ../../src/tb/uvm/axi4_pkg.sv
 
-// ── Top del testbench ────────────────────────────────────────────────────────
+// ── Testbench top ────────────────────────────────────────────────────────────
 ../../src/tb/uvm/tb_top.sv
