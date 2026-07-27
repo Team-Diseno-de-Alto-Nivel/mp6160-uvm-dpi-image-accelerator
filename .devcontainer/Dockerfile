@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     help2man \
     perl \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Verilator 5, built from source.

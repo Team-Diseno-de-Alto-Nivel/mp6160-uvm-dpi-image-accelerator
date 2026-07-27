@@ -30,15 +30,13 @@ jobs:
   # Lint del RTL. Rápido y sin Docker: instala Verilator desde apt sólo para
   # revisar sintaxis y estilo, no para simular.
   #
-  # TODO(integrante 4) — quitar `continue-on-error` cuando T1.2 esté mergeada.
-  # Hoy src/rtl/axi4_ram.v es sólo la lista de puertos con el cuerpo vacío, así
-  # que -Wall reporta todas las entradas como no usadas. Una vez implementado el
-  # módulo, el lint debe pasar limpio y este job debe poder bloquear el merge.
+  # Es bloqueante a propósito: hoy pasa limpio (el stub al final de axi4_ram.v
+  # se encarga de eso) y debe seguir pasando limpio cuando el módulo esté
+  # implementado de verdad.
   lint:
     needs: changes
     if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4

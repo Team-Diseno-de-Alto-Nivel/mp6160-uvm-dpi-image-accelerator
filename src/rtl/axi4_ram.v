@@ -96,8 +96,51 @@ module axi4_ram #(
     //   T1.4  Aplicar READ_LATENCY en el camino de lectura.
     //
     // Criterio de aceptación (T1.5):
-    //   verilator --lint-only -Wall src/rtl/axi4_ram.v   → sin warnings
-    //   xvlog src/rtl/axi4_ram.v                          → elabora limpio
+    //   $ verilator --lint-only -Wall src/rtl/axi4_ram.v   → sin warnings
+    //   $ xvlog src/rtl/axi4_ram.v                         → elabora limpio
+    //
+    // OJO: ninguna línea de comentario puede EMPEZAR con la palabra que nombra
+    // a la herramienta de lint. Cuando esa palabra es el primer token después
+    // de `//`, se interpreta como metacomentario (una directiva), y el parseo
+    // aborta si la directiva no existe. Por eso el `$` de las dos líneas de
+    // arriba.
     // -------------------------------------------------------------------------
+
+    // -------------------------------------------------------------------------
+    // BORRAR AL IMPLEMENTAR (T1.2)
+    // -------------------------------------------------------------------------
+    // Este bloque existe únicamente para que el lint pase mientras el cuerpo
+    // del módulo está vacío: fija las salidas a un valor definido y declara de
+    // forma explícita que las entradas todavía no se usan. Sin esto, -Wall
+    // reporta cada puerto como no usado y el check de CI queda en rojo.
+    //
+    // Al implementar el módulo, borrar TODO lo que sigue hasta `endmodule`.
+    // -------------------------------------------------------------------------
+    assign s_axi_awready = 1'b0;
+    assign s_axi_wready  = 1'b0;
+    assign s_axi_bid     = {ID_WIDTH{1'b0}};
+    assign s_axi_bresp   = RESP_OKAY;
+    assign s_axi_bvalid  = 1'b0;
+    assign s_axi_arready = 1'b0;
+    assign s_axi_rid     = {ID_WIDTH{1'b0}};
+    assign s_axi_rdata   = {DATA_WIDTH{1'b0}};
+    assign s_axi_rresp   = RESP_OKAY;
+    assign s_axi_rlast   = 1'b0;
+    assign s_axi_rvalid  = 1'b0;
+
+    // Idioma estándar para "estas señales están conectadas a propósito pero
+    // todavía no se leen". El resultado no se usa; sólo silencia UNUSEDSIGNAL.
+    wire _unused_ok = &{1'b0,
+                        aclk, aresetn,
+                        s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize,
+                        s_axi_awburst, s_axi_awvalid,
+                        s_axi_wdata, s_axi_wstrb, s_axi_wlast, s_axi_wvalid,
+                        s_axi_bready,
+                        s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize,
+                        s_axi_arburst, s_axi_arvalid,
+                        s_axi_rready,
+                        RESP_SLVERR, BURST_FIXED, BURST_INCR, BURST_WRAP,
+                        MEM_DEPTH[0], READ_LATENCY[0],
+                        1'b0};
 
 endmodule
