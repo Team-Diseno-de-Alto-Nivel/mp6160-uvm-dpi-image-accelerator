@@ -34,6 +34,21 @@ if ! command -v verilator >/dev/null 2>&1; then
     exit 1
 fi
 
+# El verilated.mk de Verilator es un Makefile de GNU Make, que no soporta rutas
+# con espacios. El verilate() de CMake tampoco: su parser JSON se rompe.
+case "${ROOT}" in
+    *[[:space:]]*)
+        echo "ERROR: la ruta del proyecto contiene espacios:" >&2
+        echo "       ${ROOT}" >&2
+        echo "" >&2
+        echo "       Verilator no puede construir ahí. Cloná el repo en una" >&2
+        echo "       ruta sin espacios, o usá el devcontainer (monta en" >&2
+        echo "       /workspace). Los caracteres acentuados también pueden" >&2
+        echo "       romper el verilate() de CMake." >&2
+        exit 1
+        ;;
+esac
+
 echo "==> Verilator $(verilator --version | head -1)"
 echo "==> MEM_DEPTH = ${MEM_DEPTH} bytes"
 
@@ -50,7 +65,7 @@ verilator \
     --x-assign fast \
     --x-initial fast \
     -Wall \
-    "${TRACE_FLAGS[@]}" \
+    ${TRACE_FLAGS[@]+"${TRACE_FLAGS[@]}"} \
     "${ROOT}/src/rtl/axi4_ram.v" \
     "${ROOT}/src/dpi/axi_ram_dpi.sv"
 

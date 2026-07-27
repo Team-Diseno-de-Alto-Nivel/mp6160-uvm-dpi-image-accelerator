@@ -95,6 +95,19 @@ export SYSTEMC_HOME=/opt/systemc   # adjust to your install path
 make run
 ```
 
+#### RTL backend (optional)
+
+`make run` uses the C++ RAM and needs nothing beyond the above. To run the system against the **Verilog AXI4-Full RAM** instead, install [Verilator 5](https://verilator.org/guide/latest/install.html) and:
+
+```bash
+make lint      # verilator --lint-only -Wall on src/rtl/
+make run-rtl   # same pipeline, RAM served by the Verilog RTL over DPI
+```
+
+> ⚠️ **Verilator cannot build from a path containing spaces.** Its `verilated.mk` is a GNU Make file, and CMake's `verilate()` fails too. Clone into a space-free path, or use the [dev container](#development-container), which mounts at `/workspace`. `scripts/build_rtl.sh` detects this and tells you. CI is unaffected.
+
+Without Verilator the project still builds — `sim` just rejects `--rtl-ram` with an explanatory message.
+
 ### CI / CD
 
 Every pull request triggers a GitHub Actions workflow ([build.yml](.github/workflows/build.yml)) that builds SystemC (cached), compiles the project, runs `./build/sim`, regenerates the input/output JPGs, and commits the live results (images + the `<!-- RESULTS:* -->` tables in this README) back to the PR branch. To enforce this on `master`, enable branch protection and require the `build` check to pass before merging.

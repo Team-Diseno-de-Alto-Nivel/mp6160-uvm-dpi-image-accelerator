@@ -89,4 +89,7 @@ void load_write_buffer(const unsigned char* src, int len);
 /// Copia `len` bytes del buffer de lectura después de que un READ terminó.
 void store_read_buffer(unsigned char* dst, int len);
 
+/// Cantidad acumulada de flancos de reloj aplicados al RTL. Sólo para logging.
+uint64_t tick_count();
+
 }  // namespace axi_dpi
