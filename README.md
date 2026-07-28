@@ -69,6 +69,10 @@ The same `devcontainer.json` works on [GitHub Codespaces](https://github.com/fea
 
 #### System prerequisites
 
+Only the first group is mandatory. The other two are needed **only** if you want to run that particular flow.
+
+**Always required** — builds and runs the SystemC model (`make`, `make run`):
+
 | Dependency | Minimum version | Notes |
 |---|---|---|
 | C++ compiler | GCC ≥ 9 or Clang ≥ 10 | Must support C++17 |
@@ -76,17 +80,39 @@ The same `devcontainer.json` works on [GitHub Codespaces](https://github.com/fea
 | Git | any | To clone the repository |
 | Internet access | — | Required on first build to download SystemC (skipped if `$SYSTEMC_HOME` is set) |
 
+**For the RTL backend** (`make lint`, `make rtl`, `make run-rtl`):
+
+| Dependency | Minimum version | Notes |
+|---|---|---|
+| [Verilator](https://verilator.org/guide/latest/install.html) | 5.x | Compiles the Verilog RAM and the DPI wrapper into the SystemC binary. Version 4.x is not enough — its SystemVerilog support does not cover the DPI wrapper |
+
+Without Verilator the project still builds and `make run` still works; only `--rtl-ram` is disabled, with a message saying so.
+
+**For the UVM testbench** (`make uvm`):
+
+| Dependency | Minimum version | Notes |
+|---|---|---|
+| [AMD Vivado](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vivado.html) | 2019.2 | Ships **XSim** and the **UVM 1.2** library, both used straight from the install |
+
+> **There is no separate Xilinx package to install.** Xilinx is the vendor — AMD acquired it in 2022 — Vivado is the product, and XSim is the simulator inside it. The UVM library comes bundled and is enabled with `-L uvm`. Installing Vivado is all it takes.
+>
+> The repo also carries **no Vivado project file** (`.xpr`). Everything runs through the command-line flow (`xvlog` → `xelab` → `xsim`), which is scriptable and reviewable in git, unlike a binary project.
+
 **Linux (Ubuntu/Debian):**
 ```bash
 sudo apt-get update
 sudo apt-get install -y build-essential cmake git
+sudo apt-get install -y verilator          # optional, RTL backend
 ```
 
 **macOS:**
 ```bash
 xcode-select --install       # provides clang and make
 brew install cmake git
+brew install verilator       # optional, RTL backend
 ```
+
+> ⚠️ Ubuntu 22.04 packages Verilator 4.038, which is too old. Use the [dev container](#development-container), which builds 5.x from source, or build it yourself.
 
 #### Build
 
@@ -549,7 +575,35 @@ XSim ships **UVM 1.2**, enabled with `-L uvm`. Both scripts parse the final UVM 
 
 The testbench runs against a reduced `MEM_DEPTH` (64 KB) — XSim cannot hold a 64 MB array.
 
-> ⚠️ **This does not run in CI.** Vivado is not available on GitHub-hosted runners, so the XSim log is attached to the pull request as evidence instead. The verification plan, feature list and coverage goals are in [docs/PlanUVM.md](docs/PlanUVM.md).
+#### This flow is manual by design
+
+Vivado is not available on GitHub-hosted runners, so **this is the one part of the project CI cannot check**. Rather than pretend otherwise, the flow is packaged to need a single command and to leave evidence behind.
+
+On Windows, `scripts\run_uvm_windows.bat` does the whole run unattended: it locates Vivado itself, loads its environment, updates the repo, compiles, runs all five tests, and writes everything to `exports\<timestamp>\`:
+
+| File | Contents |
+|---|---|
+| `summary.txt` | Verdict per test, plus branch, commit, date and host |
+| `logs/` | `xvlog.log`, `xelab.log`, and one `<test>.log` per test |
+| `waveforms/` | Any `.wdb` the testbench produced |
+| `coverage/` | The coverage database, when generated |
+
+`exports/` is gitignored — those files are evidence to attach to a pull request, not versioned artifacts.
+
+**When you change the RTL or the testbench:** run it, and attach `summary.txt` plus the relevant test log to the PR. That is what stands in for an automated check here.
+
+Useful flags:
+
+```bat
+scripts\run_uvm_windows.bat -Test burst_test              REM one test only
+scripts\run_uvm_windows.bat -Test smoke_test -Gui         REM open the XSim GUI
+scripts\run_uvm_windows.bat -VivadoPath "D:\Xilinx\Vivado\2019.2"
+scripts\run_uvm_windows.bat -Repo <url> -WorkDir C:\work  REM clean clone and run
+```
+
+The verification plan, feature list and coverage goals are in [docs/PlanUVM.md](docs/PlanUVM.md).
+
+> ⚠️ **The testbench has never been elaborated.** It was written on a machine without Vivado, and Verilator cannot compile UVM classes, so the only thing confirmed is that `axi4_if.sv` parses. Run `smoke_test` before trusting any of it — see [#9](../../issues/9) through [#12](../../issues/12).
 
 ### 2. Equivalence against the C++ reference (CI)
 

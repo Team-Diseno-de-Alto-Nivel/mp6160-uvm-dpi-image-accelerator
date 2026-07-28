@@ -69,6 +69,9 @@ need_file  "src/model/modules/ram_axi/ram_axi.cpp"         "TLM to DPI bridge"
 need_file  "src/model/sc_main.cpp"                         "model top level"
 
 echo
+# Presence only. build_rtl.sh is additionally *executed* by the build job in
+# CI, and run_uvm.sh is exercised by hand — see the README, that flow needs
+# Vivado and cannot run on GitHub-hosted runners.
 echo "Scripts:"
 need_file  "scripts/run_uvm.sh"          "run the SystemVerilog simulation"
 need_file  "scripts/build_rtl.sh"        "build model + DPI + RTL"
