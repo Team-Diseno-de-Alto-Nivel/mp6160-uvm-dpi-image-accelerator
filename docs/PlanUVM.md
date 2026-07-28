@@ -27,6 +27,39 @@ tb_top.sv
 
 El agente es **master**: el DUT es el esclavo, así que el TB genera las transacciones y verifica las respuestas.
 
+### Organización de archivos (actualizado 2026-07-27)
+
+`axi4_pkg.sv` empezó como un único archivo con las 10 clases adentro (un
+"skeleton" que nadie había podido elaborar todavía). Una vez confirmado que
+elabora y corre en Vivado, se separó en un archivo por clase, vía `` `include ``
+dentro del `package`:
+
+| Archivo | Contiene | Issue dueño |
+|---|---|---|
+| `axi4_pkg.sv` | Cáscara del package: imports, localparams compartidos (`BYTES_PER_BEAT`, `BURST_SIZE`, `BURST_INCR`) y la lista de `` `include `` en orden | — |
+| `axi4_seq_item.sv` | `axi4_seq_item` | #9 |
+| `axi4_driver.sv` | `axi4_driver` | #9 |
+| `axi4_monitor.sv` | `axi4_monitor` | #9 |
+| `axi4_sequencer.sv` | `typedef axi4_sequencer` | #9 |
+| `axi4_agent.sv` | `axi4_agent` | #9 |
+| `axi4_env.sv` | `axi4_env` | #9 |
+| `axi4_scoreboard.sv` | `axi4_scoreboard` | #10 |
+| `axi4_coverage.sv` | `axi4_coverage`, covergroup `cg_burst` | #11 |
+| `axi4_sequences.sv` | `axi4_base_seq`, `axi4_smoke_seq` | #12 |
+| `axi4_test.sv` | `axi4_base_test`, los 5 tests (`smoke_test` real, el resto placeholders con `UVM_WARNING`) | #12 |
+
+**Para quien tome #27 (sequences, tests, coverage — issues #11 y #12):**
+tu trabajo va en `axi4_sequences.sv`, `axi4_test.sv` y `axi4_coverage.sv` —
+archivos propios, no hace falta tocar los de #9/#10 salvo para leer sus
+interfaces. **`src/tb/files.f` no cambia** al agregar contenido a estos
+archivos: solo lista `axi4_pkg.sv`, porque `-i ../../src/tb/uvm` ya le dice a
+`xvlog` dónde resolver los `` `include ``. Si en algún momento agregás una
+clase nueva (por ejemplo, una sequence separada por archivo), solo hace falta
+sumar la línea `` `include "tu_archivo.sv" `` dentro de `axi4_pkg.sv`, **en la
+posición correcta** — el orden es el mismo que documenta el comentario de
+cabecera de ese archivo: `seq_item` antes que todo, `sequences`/`coverage`
+después de `env`.
+
 ---
 
 ## Features a verificar
