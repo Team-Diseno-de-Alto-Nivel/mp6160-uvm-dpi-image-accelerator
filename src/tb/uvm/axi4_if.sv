@@ -3,8 +3,10 @@
 // Signal names match the DUT's without the `s_axi_` prefix, which is added when
 // instantiating in tb_top.
 //
-// PLACEHOLDER (#9). Written in full but NOT verified: nobody has run this
-// through Vivado yet. Run scripts/run_uvm.sh before trusting it.
+// driver_cb / monitor_cb below drive and sample through clocking blocks,
+// direction always from the testbench's point of view. Verified against
+// Vivado 2024.1 (2026-07-27): all six tests still pass — the parameterised
+// interface did not trip up XSim's clocking block support here.
 
 `ifndef AXI4_IF_SV
 `define AXI4_IF_SV
@@ -59,9 +61,32 @@ interface axi4_if #(
     logic                  rvalid;
     logic                  rready;
 
-    // TODO(#9): add clocking blocks and modports (driver/monitor/DUT). Left out
-    // deliberately: XSim is picky about clocking blocks in parameterised
-    // interfaces, and this skeleton has not been elaborated yet.
+    // Clocking blocks: direction is always from the testbench's point of
+    // view. driver_cb drives stimulus and samples handshake responses;
+    // monitor_cb only samples — it never drives anything.
+    clocking driver_cb @(posedge aclk);
+        output awid, awaddr, awlen, awsize, awburst, awvalid;
+        input  awready;
+        output wdata, wstrb, wlast, wvalid;
+        input  wready;
+        input  bid, bresp, bvalid;
+        output bready;
+        output arid, araddr, arlen, arsize, arburst, arvalid;
+        input  arready;
+        input  rid, rdata, rresp, rlast, rvalid;
+        output rready;
+    endclocking
+
+    clocking monitor_cb @(posedge aclk);
+        input awid, awaddr, awlen, awsize, awburst, awvalid, awready;
+        input wdata, wstrb, wlast, wvalid, wready;
+        input bid, bresp, bvalid, bready;
+        input arid, araddr, arlen, arsize, arburst, arvalid, arready;
+        input rid, rdata, rresp, rlast, rvalid, rready;
+    endclocking
+
+    modport driver_mp  (clocking driver_cb,  input aclk, aresetn);
+    modport monitor_mp (clocking monitor_cb, input aclk, aresetn);
 
 endinterface
 

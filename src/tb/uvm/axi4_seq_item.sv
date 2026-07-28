@@ -11,6 +11,9 @@ class axi4_seq_item extends uvm_sequence_item;
     rand bit [31:0]   addr;
     rand int unsigned beats;         // 1..256
     bit [7:0]         data[$];       // bytes, filled by the sequence
+    bit                strb[$];      // per-byte write strobe (WSTRB), parallel
+                                      // to data[]; only meaningful when
+                                      // is_write — unused for reads
 
     // Observed response
     bit [1:0]         resp;
