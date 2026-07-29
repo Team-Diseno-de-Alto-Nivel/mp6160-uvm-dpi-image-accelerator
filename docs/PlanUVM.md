@@ -60,6 +60,25 @@ posición correcta** — el orden es el mismo que documenta el comentario de
 cabecera de ese archivo: `seq_item` antes que todo, `sequences`/`coverage`
 después de `env`.
 
+### Clocking blocks y WSTRB parcial (actualizado 2026-07-27)
+
+- `axi4_if.sv` tiene ahora `driver_cb` y `monitor_cb`, con dirección siempre
+  desde el punto de vista del testbench. `axi4_driver.sv` y `axi4_monitor.sv`
+  acceden a las señales exclusivamente a través de esos clocking blocks, no
+  directo a la interfaz — cierra el TODO de #9. Verificado: los 6 tests
+  pasan igual que antes del cambio, incluida la detección del bug inyectado
+  en el RTL (ver más abajo).
+- `axi4_seq_item` sumó un campo `strb[$]` paralelo a `data[]`. El monitor ya
+  no filtra por `WSTRB` al construir el item de escritura — antes lo hacía,
+  lo cual desincronizaba `data[]` de la posición de byte real en cuanto un
+  strobe estaba en 0. Ahora empuja todos los lanes y su strobe, y
+  `axi4_scoreboard::apply_write` solo aplica al modelo los bytes con strobe
+  activo — cierra el TODO de #10.
+- **Límite conocido:** ninguna sequence hoy genera `WSTRB` parcial —
+  `axi4_driver` todavía lo manda fijo en `'1` (eso es scope de #12,
+  `narrow_test`). El fix es correcto por inspección y no rompe nada
+  existente, pero no está ejercitado end-to-end todavía.
+
 ---
 
 ## Features a verificar

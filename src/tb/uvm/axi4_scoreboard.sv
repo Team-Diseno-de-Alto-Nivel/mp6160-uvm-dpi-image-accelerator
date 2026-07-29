@@ -23,11 +23,14 @@ class axi4_scoreboard extends uvm_scoreboard;
     endfunction
 
     function void apply_write(axi4_seq_item item);
-        // TODO(#10): honour partial WSTRB — bytes with the strobe low must
-        // keep their previous value. The driver always sets all strobes, so
-        // this is not exercised yet.
+        // Bytes with the strobe low keep their previous value in the model,
+        // matching what a real slave must do. No sequence drives partial
+        // WSTRB today (#12, narrow_test) — the driver always sets all
+        // strobes (#9) — so this path is correct but not yet exercised
+        // end to end.
         foreach (item.data[i])
-            model[item.addr + i] = item.data[i];
+            if (item.strb[i])
+                model[item.addr + i] = item.data[i];
     endfunction
 
     function void check_read(axi4_seq_item item);
