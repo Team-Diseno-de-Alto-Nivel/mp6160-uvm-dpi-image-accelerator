@@ -10,6 +10,8 @@ class axi4_seq_item extends uvm_sequence_item;
     rand bit          is_write;
     rand bit [31:0]   addr;
     rand int unsigned beats;         // 1..256
+    rand bit [1:0]    burst;         // 00=FIXED 01=INCR 10=WRAP
+    rand bit [2:0]    size;          // log2(bytes per beat)
     bit [7:0]         data[$];       // bytes, filled by the sequence
     bit                strb[$];      // per-byte write strobe (WSTRB), parallel
                                       // to data[]; only meaningful when
@@ -25,6 +27,10 @@ class axi4_seq_item extends uvm_sequence_item;
     // TODO(#12): relax for narrow_test and error_test.
     constraint c_addr  { addr[2:0] == 3'b000; addr < 32'h0001_0000; }
     constraint c_beats { beats inside {[1:16]}; }
+    // Only the subset the driver and RTL currently support.
+    // TODO(#12): relax for burst_test (FIXED) and narrow_test (size).
+    constraint c_burst { burst == BURST_INCR; }
+    constraint c_size  { size  == BURST_SIZE; }
 
     function new(string name = "axi4_seq_item");
         super.new(name);

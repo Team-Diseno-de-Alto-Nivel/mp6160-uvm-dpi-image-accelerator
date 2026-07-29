@@ -17,6 +17,8 @@ virtual class axi4_base_seq extends uvm_sequence #(axi4_seq_item);
         item.is_write = 1'b1;
         item.addr     = addr;
         item.beats    = beats;
+        item.burst    = BURST_INCR;
+        item.size     = BURST_SIZE;
         for (int i = 0; i < beats * BYTES_PER_BEAT; i++)
             item.data.push_back($urandom_range(0, 255));
         start_item(item);
@@ -29,6 +31,8 @@ virtual class axi4_base_seq extends uvm_sequence #(axi4_seq_item);
         item.is_write = 1'b0;
         item.addr     = addr;
         item.beats    = beats;
+        item.burst    = BURST_INCR;
+        item.size     = BURST_SIZE;
         start_item(item);
         finish_item(item);
     endtask
