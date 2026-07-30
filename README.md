@@ -471,7 +471,7 @@ Three things worth noting in that flow:
 
 - **The request/poll pattern is not a stylistic choice.** Verilator forbids an exported DPI function from consuming simulation time, so `axi_dpi_req()` only enqueues; the BFM advances inside its `always_ff` while the C++ side ticks the clock and polls `axi_dpi_done()`.
 - **Chunking happens in SystemC, not in the DPI contract.** The CPU moves the whole image in one `b_transport`, but the bridge's exchange buffer is 1 MB, so `RamAxi` splits it. Keeping the split above the contract means the buffer size is not tied to the image size.
-- **Simulated time becomes meaningful here.** Every tick advances `sc_time_stamp()`, unlike the C++ backend where annotated delays are computed and discarded.
+- **Simulated time here is clock-accurate, not just latency-accurate.** Every tick advances `sc_time_stamp()` one RTL clock edge at a time. The C++ backend also advances simulated time now (see *Simulated vs. wall-clock time* below), but in one jump per transaction — the annotated latency, not a cycle-by-cycle AXI handshake.
 
 For the full port map, the frozen DPI contract and the BFM state machine, see [docs/ArquitecturaDPI.md](docs/ArquitecturaDPI.md).
 
@@ -488,11 +488,11 @@ Both RAM backends run the same 1080p pipeline, and CI compares their output byte
 <!-- RESULTS:BACKENDS:START -->
 | RAM backend | How | Simulated time at stop | Status |
 |---|---|---|---|
-| C++ behavioural | `make run` | 100 ns | ✅ runs |
-| Verilog AXI4-Full (DPI) | `make run-rtl` | 210.05 ms | ✅ runs |
+| C++ behavioural | `make run` | 62.21 ms | ✅ runs |
+| Verilog AXI4-Full (DPI) | `make run-rtl` | 251.53 ms | ✅ runs |
 <!-- RESULTS:BACKENDS:END -->
 
-The gap in simulated time is the whole point. The C++ backend computes annotated delays and throws them away, so its 100 ns is just the CPU's polling `wait()`. The RTL backend advances a real clock, so its figure is an actual transfer cost.
+Both backends now report a meaningful figure. The C++ backend consumes its annotated per-transaction delays with `wait()` (loosely-timed: it advances time in one jump per transaction, not one clock edge at a time), so its total is the sum of every CPU/Bus/RAM/Disk/Accelerator latency actually incurred by the pipeline. The RTL backend advances a real clock one edge at a time, so its larger figure additionally reflects the actual AXI handshake cost — that gap is the point of comparing them.
 
 The byte counts and pixel checks below are identical for both backends — that is what `cmp` verifies.
 
@@ -545,11 +545,9 @@ Together these cover the assignment's full flow. The remaining requirement — t
 
 ### Simulated vs. wall-clock time
 
-**C++ backend.** `sc_time_stamp()` reports <!-- RESULTS:SIMTIME:START -->**100 ns**<!-- RESULTS:SIMTIME:END --> at stop, which says nothing about real execution time (the real run takes milliseconds to a few seconds depending on host CPU). Every `b_transport` annotates a local delay — CPU 10 ns, Bus 5 ns, RAM 10 ns, Disk 100 ns — but none of them is ever consumed with `wait()`: they are computed and discarded. The only call that actually advances simulated time is the single `wait(100 ns)` in `CPU::wait_accelerator_ready()`'s polling loop. This is a **loosely-timed** TLM model: functionally accurate, not timing-accurate.
+**C++ backend.** `sc_time_stamp()` reports <!-- RESULTS:SIMTIME:START -->**62.21 ms**<!-- RESULTS:SIMTIME:END --> at stop, which says nothing about real execution time (the real run takes milliseconds to a few seconds depending on host CPU). Every `b_transport` annotates a local delay — CPU 10 ns, Bus 5 ns, RAM 10 ns, Disk 100 ns — and the initiator that owns the transaction (`CPU::transport()`, and `Accelerator::process_image()` for the per-pixel RAM traffic) consumes it with a single `wait()` right after the call returns. On top of that, `CPU::wait_accelerator_ready()` adds its own `wait(100 ns)` between polls while the Accelerator is still busy. This is a **loosely-timed** TLM model: it jumps simulated time forward once per transaction rather than tracking it one clock edge at a time, but — unlike leaving the annotated delay unconsumed — the total now reflects every latency the pipeline actually incurred.
 
-**RTL backend.** This changes qualitatively. `RamAxi` advances the RTL clock one edge at a time and pairs every edge with a `wait(5 ns)`, so simulated time tracks the actual AXI handshakes. A single 1 MB chunk already costs on the order of tens of milliseconds of simulated time. That number is a real transfer cost, not an artefact — which is why the RTL backend is the only configuration in which `sc_time_stamp()` is worth quoting at all.
-
-Consuming the annotated delays in the C++ backend so both configurations report meaningful time is tracked as a follow-up enhancement, not a requirement of this assignment.
+**RTL backend.** This changes qualitatively. `RamAxi` advances the RTL clock one edge at a time and pairs every edge with a `wait(5 ns)`, so simulated time tracks the actual AXI handshakes. A single 1 MB chunk already costs on the order of tens of milliseconds of simulated time. That number is a real transfer cost, not an artefact. The C++ backend's total is still smaller because it only pays the annotated per-transaction latency, not a full clock-accurate AXI handshake per byte — that remaining gap is exactly what makes the RTL backend worth comparing against.
 
 ---
 

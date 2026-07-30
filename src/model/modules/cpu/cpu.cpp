@@ -52,6 +52,7 @@ void CPU::transport(uint64_t addr, unsigned char* data, unsigned int size, tlm::
     trans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
     init_socket->b_transport(trans, delay);
+    sc_core::wait(delay);
 
     if (trans.is_response_error()) {
         SC_REPORT_ERROR("CPU", "TLM transaction returned error response");

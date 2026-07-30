@@ -86,8 +86,9 @@ void Accelerator::process_image(uint64_t src_addr, uint64_t dst_addr, uint64_t p
         read_payload.set_address(src_offset);
         read_payload.set_data_ptr(rgb_data);
         read_payload.set_data_length(3);
-        sc_core::sc_time delay = sc_core::SC_ZERO_TIME;
-        init_socket->b_transport(read_payload, delay);
+        sc_core::sc_time read_delay = sc_core::SC_ZERO_TIME;
+        init_socket->b_transport(read_payload, read_delay);
+        sc_core::wait(read_delay);
 
         uint8_t r = rgb_data[0];
         uint8_t g = rgb_data[1];
@@ -100,7 +101,9 @@ void Accelerator::process_image(uint64_t src_addr, uint64_t dst_addr, uint64_t p
         write_payload.set_address(dst_offset);
         write_payload.set_data_ptr(gray_data);
         write_payload.set_data_length(1);
-        init_socket->b_transport(write_payload, delay);
+        sc_core::sc_time write_delay = sc_core::SC_ZERO_TIME;
+        init_socket->b_transport(write_payload, write_delay);
+        sc_core::wait(write_delay);
     }
     Logger::progress_done();
     write_status_register(1);

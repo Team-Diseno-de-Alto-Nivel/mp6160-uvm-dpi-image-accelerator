@@ -90,6 +90,20 @@ virtual class axi4_base_seq extends uvm_sequence #(axi4_seq_item);
 
     endtask
 
+    //----------------------------------------------------------------------
+    // Helper: write, then read back the same region. The scoreboard is what
+    // actually catches a mismatch — this just generates the pair.
+    //----------------------------------------------------------------------
+
+    task write_read_burst
+    (
+        input bit [31:0] addr,
+        input int unsigned beats
+    );
+        write_burst(addr, beats);
+        read_burst(addr, beats);
+    endtask
+
 endclass
 
 
