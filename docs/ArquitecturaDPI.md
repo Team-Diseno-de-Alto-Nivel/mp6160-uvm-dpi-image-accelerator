@@ -65,7 +65,15 @@ AXI4 separa cada transacción en cinco canales independientes, cada uno con su p
 
 `AWLEN`/`ARLEN` codifica **beats − 1**, o sea de 1 a 256 beats.
 
-> **TODO(integrante 1)** — Documentar aquí las decisiones de implementación: cómo se resuelven las transferencias angostas (`AWSIZE` < `DATA_WIDTH/8`), qué pasa con `WSTRB` en una escritura parcial, y en qué condiciones exactas se devuelve `SLVERR`.
+**Transferencias angostas.** Cada beat activa sólo la ventana de `2^AWSIZE` (o `2^ARSIZE`) bytes que empieza en `addr mod (DATA_WIDTH/8)` — el carril lo decide la dirección del beat, no un offset fijo en 0. En una escritura de ancho completo (`SIZE = log2(DATA_WIDTH/8)`, lo único que emiten hoy el BFM y el driver UVM) esa ventana cubre el bus entero, así que el comportamiento es idéntico al de antes de soportar transferencias angostas.
+
+**`WSTRB` en escritura parcial.** Cada carril del `WSTRB` se respeta de forma independiente del ancho del beat: un byte sólo se escribe si cae dentro de la ventana activa **y** su strobe está en alto. Fuera de la ventana, el dato de esa ventana ni se lee ni se escribe.
+
+**Condición de `SLVERR`.** Se dispara si algún byte accedido por la ráfaga cae fuera de `MEM_DEPTH`. En lectura, `RRESP` es genuinamente por beat (cada beat es independiente), así que se calcula en el momento en que se arma ese beat. En escritura, `BRESP` es un único valor para toda la ráfaga: el error de cada beat se acumula en un registro y se combina con el del último beat recién en el momento de responder — evita el error clásico de "leer tarde" un registro no-bloqueante que todavía no reflejó el beat que se acaba de procesar.
+
+**`FIXED` y `WRAP`.** `FIXED` mantiene la misma dirección (y por lo tanto el mismo carril) en todos los beats de la ráfaga. `WRAP` avanza igual que `INCR`, pero si el próximo beat cruzaría el final de la ventana de la ráfaga (`(AWLEN+1) × 2^AWSIZE` bytes, alineada), la dirección vuelve al inicio de esa ventana en lugar de seguir creciendo.
+
+**`READ_LATENCY`.** Son los ciclos entre el handshake de `ARVALID`/`ARREADY` y el primer `RVALID` de la ráfaga; no afecta el espaciado entre beats ya en curso. Con el valor por defecto (`READ_LATENCY = 1`) el timing es idéntico al de antes de que el parámetro fuera configurable.
 
 ---
 
