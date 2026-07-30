@@ -160,7 +160,9 @@ def main() -> None:
         readme_text, "DATA-VOLUME", data_volume_table(len(rgb), len(gray))
     )
     readme_text = replace_marker(readme_text, "PIXELS", pixel_table(pixel_rows))
-    readme_text = replace_marker(readme_text, "SIMTIME", f"**{final_time}**", inline=True)
+    readme_text = replace_marker(
+        readme_text, "SIMTIME", f"**{humanise_time(final_time)}**", inline=True
+    )
     readme_text = replace_marker(
         readme_text, "BACKENDS", backend_table(final_time, rtl_time)
     )
