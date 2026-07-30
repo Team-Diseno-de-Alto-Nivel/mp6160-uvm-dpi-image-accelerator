@@ -64,10 +64,11 @@ class burst_test extends axi4_base_test;
     `uvm_component_utils(burst_test)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     task run_phase(uvm_phase phase);
+        axi4_burst_seq seq;
         phase.raise_objection(this);
-        `uvm_warning("NOT_IMPLEMENTED",
-            "burst_test is a placeholder (#12): needs INCR bursts of 1/2/16/256 beats, FIXED, and back-to-back transfers with no bubbles")
-        #100ns;
+        seq = axi4_burst_seq::type_id::create("seq");
+        seq.start(env.agent.sequencer);
+        #200ns;
         phase.drop_objection(this);
     endtask
 endclass
@@ -76,10 +77,11 @@ class narrow_test extends axi4_base_test;
     `uvm_component_utils(narrow_test)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     task run_phase(uvm_phase phase);
+        axi4_narrow_seq seq;
         phase.raise_objection(this);
-        `uvm_warning("NOT_IMPLEMENTED",
-            "narrow_test is a placeholder (#12): needs AWSIZE below the bus width and partial WSTRB. The DUT does not support them yet either (#6)")
-        #100ns;
+        seq = axi4_narrow_seq::type_id::create("seq");
+        seq.start(env.agent.sequencer);
+        #200ns;
         phase.drop_objection(this);
     endtask
 endclass
@@ -88,10 +90,11 @@ class error_test extends axi4_base_test;
     `uvm_component_utils(error_test)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     task run_phase(uvm_phase phase);
+        axi4_error_seq seq;
         phase.raise_objection(this);
-        `uvm_warning("NOT_IMPLEMENTED",
-            "error_test is a placeholder (#12): needs out-of-range accesses expecting SLVERR. The DUT answers OKAY today (#6)")
-        #100ns;
+        seq = axi4_error_seq::type_id::create("seq");
+        seq.start(env.agent.sequencer);
+        #200ns;
         phase.drop_objection(this);
     endtask
 endclass
@@ -100,10 +103,11 @@ class random_test extends axi4_base_test;
     `uvm_component_utils(random_test)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
     task run_phase(uvm_phase phase);
+        axi4_random_seq seq;
         phase.raise_objection(this);
-        `uvm_warning("NOT_IMPLEMENTED",
-            "random_test is a placeholder (#12): needs the constrained random sequence")
-        #100ns;
+        seq = axi4_random_seq::type_id::create("seq");
+        seq.start(env.agent.sequencer);
+        #500ns;
         phase.drop_objection(this);
     endtask
 endclass
