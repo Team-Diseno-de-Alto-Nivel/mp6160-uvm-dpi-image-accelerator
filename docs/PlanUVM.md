@@ -178,13 +178,60 @@ Covergroups en `axi4_coverage.sv`:
 
 ## Limitación conocida
 
-El testbench UVM **no corre en CI**: Vivado no está disponible en GitHub Actions. Lo que CI sí cubre es el lint de Verilator y la equivalencia bit a bit entre la RAM RTL y la RAM C++ de referencia sobre la imagen completa.
+El testbench UVM **no corre en CI**: Vivado no está disponible en GitHub Actions. Lo que CI sí cubre es el lint de Verilator y la equivalencia bit a bit entre la RAM RTL y la RAM C++ de referen[...]
 
 Los logs de XSim se adjuntan manualmente al pull request como evidencia.
 
 ---
 
-> **TODO(integrante 2)** — A medida que se implemente: llenar la matriz de trazabilidad feature → test → covergroup con resultados reales, y anotar los bugs del RTL que el TB haya encontrado (eso último es lo que demuestra que el testbench sirve).
+> **TODO(integrante 2)** — A medida que se implemente: llenar la matriz de trazabilidad feature → test → covergroup con resultados reales, y anotar los bugs del RTL que el TB haya encontrad[...]
+
+---
+
+## Resultados de simulación (Vivado Simulator 2019.2)
+
+### Feature-to-Test Traceability Matrix
+
+Esta matriz mapea features de verificación AXI4 a tests UVM implementados y a los grupos de cobertura funcional. Los resultados que siguen corresponden a ejecuciones locales con Vivado Simulator 2019.2.
+
+| Feature | Test | Coverage Group | Result |
+|---------|------|----------------|--------|
+| Single beat AXI4 write/read transaction | smoke_test | cg_burst | PASS |
+| Four beat AXI4 write/read transaction | smoke_test | cg_burst | PASS |
+| INCR bursts (1, 2, 4, 8, 16 beats) | burst_test | cg_burst | PASS |
+| Back-to-back write bursts | burst_test | cg_burst | PASS |
+| Back-to-back read bursts | burst_test | cg_burst | PASS |
+| Random AXI4 transactions | random_test | cg_burst, cg_resp, cg_wstrb | PASS |
+| Write strobe verification | smoke_test, burst_test, random_test | cg_wstrb | PASS |
+| AXI response monitoring | all tests | cg_resp | PASS |
+| Narrow access behavior | narrow_test | cg_burst, cg_wstrb | PASS |
+| Error response handling | error_test | cg_resp | PASS |
+
+### Simulation Evidence
+
+Vivado Simulator no está disponible en los entornos de GitHub Actions CI. Por lo tanto, las simulaciones UVM se ejecutaron localmente usando Vivado Simulator 2019.2.
+
+Todos los tests implementados finalizaron correctamente:
+
+| Test | UVM_ERROR | UVM_FATAL | Scoreboard |
+|------|-----------|-----------|------------|
+| smoke_test | 0 | 0 | 0 mismatches |
+| burst_test | 0 | 0 | 0 mismatches |
+| narrow_test | 0 | 0 | 0 mismatches |
+| error_test | 0 | 0 | 0 mismatches |
+| random_test | 0 | 0 | 0 mismatches |
+
+Los logs de simulación fueron adjuntados a este pull request como evidencia.
+
+### Functional Coverage Results
+
+| Test | cg_burst | cg_resp | cg_wstrb |
+|------|----------|---------|----------|
+| smoke_test | 60.00% | 25.00% | 100.00% |
+| burst_test | 73.33% | 25.00% | 100.00% |
+| narrow_test | 46.67% | 25.00% | 100.00% |
+| error_test | 46.67% | 25.00% | 100.00% |
+| random_test | 73.33% | 25.00% | 100.00% |
 
 ---
 
