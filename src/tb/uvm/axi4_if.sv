@@ -7,6 +7,7 @@
 // direction always from the testbench's point of view. Verified against
 // Vivado 2024.1 (2026-07-27): all six tests still pass — the parameterised
 // interface did not trip up XSim's clocking block support here.
+`timescale 1ns/1ps
 
 `ifndef AXI4_IF_SV
 `define AXI4_IF_SV

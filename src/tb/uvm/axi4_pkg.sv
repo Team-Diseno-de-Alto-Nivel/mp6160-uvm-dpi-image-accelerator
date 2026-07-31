@@ -25,6 +25,8 @@
 // Targets Vivado XSim, which ships UVM 1.2 (not IEEE 1800.2): no register
 // layer, no advanced factory usage.
 
+`timescale 1ns/1ps
+
 `ifndef AXI4_PKG_SV
 `define AXI4_PKG_SV
 

@@ -1,4 +1,4 @@
-// axi4_coverage — functional coverage subscriber.
+// axi4_coverage   functional coverage subscriber.
 //
 // `included from axi4_pkg.sv, after axi4_seq_item.sv.
 //
@@ -6,18 +6,18 @@
 // see docs/PlanUVM.md for the full covergroup plan (AWSIZE, AWBURST, WSTRB,
 // response codes, aligned vs. unaligned, and the length x size cross).
 //------------------------------------------------------------------------------
-// axi4_coverage — functional coverage subscriber.
+// axi4_coverage   functional coverage subscriber.
 //
 // Receives completed AXI transactions from the monitor through an analysis
 // export and samples functional coverage.
 //
 // Current implementation covers:
 //
-//   • transaction direction
-//   • burst length
-//   • direction × length
-//   • AXI response
-//   • WSTRB patterns
+//     transaction direction
+//     burst length
+//     direction   length
+//     AXI response
+//     WSTRB patterns
 //
 
 
@@ -162,24 +162,15 @@ class axi4_coverage extends uvm_subscriber #(axi4_seq_item);
 
         super.report_phase(phase);
 
-        `uvm_info(
-            "COV_SUMMARY",
-            $sformatf(
-                "\n"
-                "----------------------------------------\n"
-                "Functional Coverage Summary\n"
-                "----------------------------------------\n"
-                "cg_burst : %0.2f %%\n"
-                "cg_resp  : %0.2f %%\n"
-                "cg_wstrb : %0.2f %%\n"
-                "----------------------------------------",
-                cg_burst.get_coverage(),
-                cg_resp.get_coverage(),
-                cg_wstrb.get_coverage()
-            ),
-            UVM_LOW
-        );
-
+`uvm_info(
+        "COV_SUMMARY",
+        $sformatf("\n----------------------------------------\nFunctional Coverage Summary\n----------------------------------------\ncg_burst : %0.2f %%\ncg_resp  : %0.2f %%\ncg_wstrb : %0.2f %%\n----------------------------------------",
+            cg_burst.get_coverage(),
+            cg_resp.get_coverage(),
+            cg_wstrb.get_coverage()
+        ),
+        UVM_LOW
+	);
     endfunction
 
 endclass
