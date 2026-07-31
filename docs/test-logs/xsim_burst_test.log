@@ -1,0 +1,78 @@
+#-----------------------------------------------------------
+# xsim v2019.2 (64-bit)
+# SW Build 2708876 on Wed Nov  6 21:40:23 MST 2019
+# IP Build 2700528 on Thu Nov  7 00:09:20 MST 2019
+# Start of session at: Thu Jul 30 22:29:24 2026
+# Process ID: 8948
+# Current directory: C:/Users/noelpc/mp6160-uvm-dpi-image-accelerator/build/uvm
+# Command line: xsim.exe -log xsim_burst_test.log -mode tcl -source {xsim.dir/work.tb_top/xsim_script.tcl}
+# Log file: C:/Users/noelpc/mp6160-uvm-dpi-image-accelerator/build/uvm/xsim_burst_test.log
+# Journal file: C:/Users/noelpc/mp6160-uvm-dpi-image-accelerator/build/uvm\xsim.jou
+#-----------------------------------------------------------
+source xsim.dir/work.tb_top/xsim_script.tcl
+# xsim {work.tb_top} -testplusarg UVM_TESTNAME=burst_test -autoloadwcfg -runall
+Vivado Simulator 2019.2
+Time resolution is 1 ps
+run -all
+UVM_INFO /proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv(18601) @ 0: reporter [UVM/RELNOTES] 
+      (Specify +UVM_NO_RELNOTES to turn off this notice)
+  with `UVM_OBJECT_DO_NOT_NEED_CONSTRUCTOR undefined.
+
+  You are using a version of the UVM library that has been compiled
+  with `UVM_NO_DEPRECATED undefined.
+
+  You are using a version of the UVM library that has been compiled
+
+  ***********       IMPORTANT RELEASE NOTES         ************
+----------------------------------------------------------------
+(C) 2013-2014 NVIDIA Corporation
+(C) 2011-2013 Cypress Semiconductor Corp.
+(C) 2006-2014 Synopsys, Inc.
+(C) 2007-2014 Cadence Design Systems, Inc.
+(C) 2007-2014 Mentor Graphics Corporation
+
+
+----------------------------------------------------------------
+
+UVM_INFO /proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv(18648) @ 0: reporter [NO_DPI_TSTNAME] UVM_NO_DPI defined--getting UVM_TESTNAME directly, without DPI
+UVM_INFO @ 0: reporter [RNTST] Running test burst_test...
+UVM_INFO ../../src/tb/uvm/axi4_sequences.sv(187) @ 0: uvm_test_top.env.agent.sequencer@@seq [axi4_burst_seq] Testing 1-beat INCR burst
+UVM_INFO ../../src/tb/uvm/uvm/axi4_sequences.sv(187) @ 95000: uvm_test_top.env.agent.sequencer@@seq [axi4_burst_seq] Testing 2-beat INCR burst
+UVM_INFO ../../src/tb/uvm/axi4_sequences.sv(187) @ 165000: uvm_test_top.env.agent.sequencer@@seq [axi4_burst_seq] Testing 4-beat INCR burst
+UVM_INFO ../../src/tb/uvm/axi4_sequences.sv(187) @ 275000: uvm_test_top.env.agent.sequencer@@seq [axi4_burst_seq] Testing 8-beat INCR burst
+UVM_INFO ../../src/tb/uvm/axi4_sequences.sv(187) @ 465000: uvm_test_top.env.agent.sequencer@@seq [axi4_burst_seq] Testing 16-beat INCR burst
+UVM_INFO ../../src/tb/uvm/axi4_sequences.sv(202) @ 815000: uvm_test_top.env.agent.sequencer@@seq [axi4_burst_seq] Back-to-back write bursts
+UVM_INFO ../../src/tb/uvm/axi4_sequences.sv(215) @ 1115000: uvm_test_top.env.agent.sequencer@@seq [axi4_burst_seq] Back-to-back read bursts
+UVM_INFO /proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv(19968) @ 1565000: reporter [TEST_DONE] 'run' phase is ready to proceed to the 'extract' phase
+UVM_INFO ../../src/tb/uvm/axi4_coverage.sv(173) @ 1565000: uvm_test_top.env.coverage [COV_SUMMARY] 
+----------------------------------------
+Functional Coverage Summary
+----------------------------------------
+cg_burst : 73.33 %
+cg_resp  : 25.00 %
+cg_wstrb : 100.00 %
+----------------------------------------
+UVM_INFO ../../src/tb/uvm/axi4_scoreboard.sv(59) @ 1565000: uvm_test_top.env.scoreboard [SB_SUMMARY] 408 bytes checked, 0 mismatches
+UVM_INFO ../../src/tb/uvm/axi4_test.sv(33) @ 1565000: uvm_test_top [RESULT] TEST PASSED
+UVM_INFO /proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv(13673) @ 1565000: reporter [UVM/REPORT/SERVER] [axi4_burst_seq]     7
+[UVM/RELNOTES]     1
+[UVM/COMP/NAMECHECK]     1
+[TEST_DONE]     1
+[SB_SUMMARY]     1
+[RNTST]     1
+[RESULT]     1
+[NO_DPI_TSTNAME]     1
+[COV_SUMMARY]     1
+** Report counts by id
+UVM_FATAL :    0
+UVM_ERROR :    0
+UVM_WARNING :    0
+UVM_INFO :   15
+** Report counts by severity
+
+--- UVM Report Summary ---
+
+
+$finish called at time : 1565 ns : File "/proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv" Line 18699
+exit
+INFO: [Common 17-206] Exiting xsim at Thu Jul 30 22:29:31 2026...

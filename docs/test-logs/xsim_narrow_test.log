@@ -1,0 +1,73 @@
+#-----------------------------------------------------------
+# xsim v2019.2 (64-bit)
+# SW Build 2708876 on Wed Nov  6 21:40:23 MST 2019
+# IP Build 2700528 on Thu Nov  7 00:09:20 MST 2019
+# Start of session at: Thu Jul 30 22:30:22 2026
+# Process ID: 12480
+# Current directory: C:/Users/noelpc/mp6160-uvm-dpi-image-accelerator/build/uvm
+# Command line: xsim.exe -log xsim_narrow_test.log -mode tcl -source {xsim.dir/work.tb_top/xsim_script.tcl}
+# Log file: C:/Users/noelpc/mp6160-uvm-dpi-image-accelerator/build/uvm/xsim_narrow_test.log
+# Journal file: C:/Users/noelpc/mp6160-uvm-dpi-image-accelerator/build/uvm\xsim.jou
+#-----------------------------------------------------------
+source xsim.dir/work.tb_top/xsim_script.tcl
+# xsim {work.tb_top} -testplusarg UVM_TESTNAME=narrow_test -autoloadwcfg -runall
+Vivado Simulator 2019.2
+Time resolution is 1 ps
+run -all
+UVM_INFO /proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv(18601) @ 0: reporter [UVM/RELNOTES] 
+      (Specify +UVM_NO_RELNOTES to turn off this notice)
+  with `UVM_OBJECT_DO_NOT_NEED_CONSTRUCTOR undefined.
+
+  You are using a version of the UVM library that has been compiled
+  with `UVM_NO_DEPRECATED undefined.
+
+  You are using a version of the UVM library that has been compiled
+
+  ***********       IMPORTANT RELEASE NOTES         ************
+----------------------------------------------------------------
+(C) 2013-2014 NVIDIA Corporation
+(C) 2011-2013 Cypress Semiconductor Corp.
+(C) 2006-2014 Synopsys, Inc.
+(C) 2007-2014 Cadence Design Systems, Inc.
+(C) 2007-2014 Mentor Graphics Corporation
+
+
+----------------------------------------------------------------
+
+UVM_INFO /proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv(18648) @ 0: reporter [NO_DPI_TSTNAME] UVM_NO_DPI defined--getting UVM_TESTNAME directly, without DPI
+UVM_INFO @ 0: reporter [RNTST] Running test narrow_test...
+UVM_INFO /proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv(20867) @ 0: reporter [UVM/COMP/NAMECHECK] This implementation of the component name checks requires DPI to be enabled
+UVM_INFO ../../src/tb/uvm/axi4_sequences.sv(248) @ 0: uvm_test_top.env.agent.sequencer@@seq [axi4_narrow_seq] Current RTL supports only full-width accesses
+UVM_INFO /proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv(19968) @ 355000: reporter [TEST_DONE] 'run' phase is ready to proceed to the 'extract' phase
+UVM_INFO ../../src/tb/uvm/axi4_coverage.sv(173) @ 355000: uvm_test_top.env.coverage [COV_SUMMARY] 
+----------------------------------------
+Functional Coverage Summary
+----------------------------------------
+cg_burst : 46.67 %
+cg_resp  : 25.00 %
+cg_wstrb : 100.00 %
+----------------------------------------
+UVM_INFO ../../src/tb/uvm/axi4_scoreboard.sv(59) @ 355000: uvm_test_top.env.scoreboard [SB_SUMMARY] 32 bytes checked, 0 mismatches
+UVM_INFO ../../src/tb/uvm/axi4_test.sv(33) @ 355000: uvm_test_top [RESULT] TEST PASSED
+UVM_INFO /proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv(13673) @ 355000: reporter [UVM/REPORT/SERVER] [axi4_narrow_seq]     1
+[UVM/RELNOTES]     1
+[UVM/COMP/NAMECHECK]     1
+[TEST_DONE]     1
+[SB_SUMMARY]     1
+[RNTST]     1
+[RESULT]     1
+[NO_DPI_TSTNAME]     1
+[COV_SUMMARY]     1
+** Report counts by id
+UVM_FATAL :    0
+UVM_ERROR :    0
+UVM_WARNING :    0
+UVM_INFO :    9
+** Report counts by severity
+
+--- UVM Report Summary ---
+
+
+$finish called at time : 355 ns : File "/proj/xbuilds/SWIP/2019.2_0924_1936/installs/lin64/Vivado/2019.2/data/system_verilog/uvm_1.2/xlnx_uvm_package.sv" Line 18699
+exit
+INFO: [Common 17-206] Exiting xsim at Thu Jul 30 22:30:28 2026...
